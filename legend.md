@@ -6,11 +6,8 @@ This document serves as a central reference for .NET/C# best practices, AI agent
 ## Project Documentation
 
 ### AI Agent Configuration
-- **[AGENTS.md](/AGENTS.md)** - AI agent instructions with C# best practices, modern language features, and .NET ecosystem guidance
+- **[AGENTS.md](/AGENTS.md)** - Comprehensive AI agent instructions with C# best practices, SOLID principles, DDD patterns, architecture guidelines, and .NET ecosystem guidance
 - **[GitHub Copilot Instructions](/.github/copilot-instructions.md)** - Repository-wide configuration for GitHub Copilot integration
-
-### Architecture Guidelines
-- **[.NET Architecture Good Practices](/instructions/dotnet-architecture-good-practices.instructions.md)** - DDD, SOLID, and .NET architectural patterns
 
 ## Official .NET and C# Resources
 
