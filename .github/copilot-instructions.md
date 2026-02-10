@@ -2,59 +2,53 @@
 
 This file configures GitHub Copilot to use project-specific agents and architectural instructions for better code generation and assistance.
 
-## Agent Files
+## Repository Overview
 
-### C# Expert Agent
-- **Path**: `/agents/CSharpExpert.agent.md`
-- **Purpose**: Provides C# best practices, modern language features, and .NET ecosystem guidance
-- **Use When**: Writing or reviewing C# code, implementing .NET features, or making architectural decisions
+OutlookSync is a .NET application focused on synchronizing Outlook data with external systems. The project follows Domain-Driven Design (DDD) principles and SOLID design patterns to ensure maintainability and scalability.
 
-## Instruction Files
+## Agent Instructions
+
+This repository uses AI agent instructions defined in the `AGENTS.md` file located in the root directory. The agent file provides:
+- C# and .NET best practices
+- Modern language features guidance (C# 7.0+)
+- Asynchronous programming patterns
+- Dependency injection guidelines
+- Architecture patterns (DDD, Clean Architecture, CQRS)
+- Testing and security best practices
+
+For detailed agent instructions, see [/AGENTS.md](/AGENTS.md).
+
+## Path-Specific Instructions
 
 ### .NET Architecture Good Practices
 - **Path**: `/instructions/dotnet-architecture-good-practices.instructions.md`
 - **Purpose**: Comprehensive guide for DDD, SOLID principles, and .NET architecture patterns
-- **Use When**: Designing application architecture, implementing domain models, or structuring projects
+- **Applies to**: All .NET code in the repository
 
-## How GitHub Copilot Uses These Files
-
-When you work with code in this repository, GitHub Copilot automatically:
-1. References the agent files to understand project-specific coding standards
-2. Applies architectural patterns from instruction files
-3. Suggests code that aligns with documented best practices
-4. Provides context-aware completions based on DDD and SOLID principles
-
-## Best Practices for Using Copilot in This Project
+## How to Work with This Repository
 
 ### Code Generation
-- Copilot will suggest code following SOLID principles
-- Entity and value object implementations will align with DDD patterns
-- Async/await patterns will follow .NET best practices
-- Dependency injection will be properly structured
+When generating code, Copilot will:
+- Follow SOLID principles as defined in our architecture instructions
+- Implement DDD patterns (entities, value objects, aggregates, repositories)
+- Use modern async/await patterns according to .NET best practices
+- Structure dependency injection properly
 
-### Architecture Decisions
-- Copilot understands the layered architecture (Domain, Application, Infrastructure, Presentation)
-- Suggests proper placement of classes in appropriate layers
-- Recommends repository patterns and aggregate boundaries
-- Provides guidance on domain events and domain services
+### Architecture Guidelines
+- Follow layered architecture: Domain, Application, Infrastructure, Presentation
+- Keep domain logic in the domain layer, free from infrastructure concerns
+- Use repository patterns for data access abstraction
+- Implement proper aggregate boundaries
 
-### Code Reviews
-- Use Copilot to check adherence to coding conventions
-- Validate that SOLID principles are followed
-- Ensure domain logic stays in the domain layer
-- Verify proper error handling and validation patterns
-
-## Customization
-
-To enhance Copilot's understanding of this project:
-1. Add more specific agent files for specialized areas (e.g., testing, security)
-2. Update instruction files with project-specific patterns
-3. Document domain-specific terminology in the ubiquitous language
-4. Include examples of preferred implementations
+### Code Quality Standards
+- Use meaningful names following Microsoft's C# conventions
+- Keep methods small and focused (Single Responsibility Principle)
+- Leverage nullable reference types to prevent null reference exceptions
+- Write unit tests following the AAA pattern (Arrange, Act, Assert)
 
 ## Additional Resources
 
 For more information on GitHub Copilot configuration:
 - [GitHub Copilot Documentation](https://docs.github.com/en/copilot)
-- [Copilot for Business](https://docs.github.com/en/copilot/overview-of-github-copilot/about-github-copilot-business)
+- [Repository Custom Instructions](https://docs.github.com/en/copilot/how-tos/configure-custom-instructions/add-repository-instructions)
 - [Copilot Best Practices](https://github.blog/2023-06-20-how-to-write-better-prompts-for-github-copilot/)
