@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/OutlookSync.AI/OutlookSync.AI.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/OutlookSync.AI.Tests/OutlookSync.AI.Tests.csproj" />
+  </Folder>
+</Solution>
