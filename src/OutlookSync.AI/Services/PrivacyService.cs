@@ -10,7 +10,7 @@ namespace OutlookSync.AI.Services;
 public sealed class PrivacyService : IPrivacyService
 {
     private readonly ILogger<PrivacyService> _logger;
-    private PrivacySettings _settings = new();
+    private volatile PrivacySettings _settings = new();
 
     public PrivacyService(ILogger<PrivacyService> logger)
     {
