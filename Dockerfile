@@ -35,8 +35,8 @@ RUN dotnet build "OutlookSync.Api.csproj" -c $BUILD_CONFIGURATION -o /app/build 
 FROM build AS test
 WORKDIR /src
 
-# Run all tests
-RUN dotnet test "OutlookSync.sln" -c $BUILD_CONFIGURATION --no-build --verbosity normal
+# Run all tests (rebuild to ensure everything is compiled correctly in this stage)
+RUN dotnet test "OutlookSync.sln" -c $BUILD_CONFIGURATION --verbosity normal
 
 # Stage 4: Publish stage
 FROM build AS publish
@@ -48,7 +48,6 @@ RUN dotnet publish "OutlookSync.Api.csproj" \
     -c $BUILD_CONFIGURATION \
     -o /app/publish \
     --no-restore \
-    --no-build \
     /p:UseAppHost=false
 
 # Stage 5: Final release image
