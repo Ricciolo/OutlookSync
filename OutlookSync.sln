@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OutlookSync.Domain.Tests", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OutlookSync.Infrastructure", "src\OutlookSync.Infrastructure\OutlookSync.Infrastructure.csproj", "{55F49CE3-4B8B-4E61-862A-F197C4DBE960}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OutlookSync.Application", "src\OutlookSync.Application\OutlookSync.Application.csproj", "{A7555C24-9A94-4769-A328-7744F5978848}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -87,6 +89,18 @@ Global
 		{55F49CE3-4B8B-4E61-862A-F197C4DBE960}.Release|x64.Build.0 = Release|Any CPU
 		{55F49CE3-4B8B-4E61-862A-F197C4DBE960}.Release|x86.ActiveCfg = Release|Any CPU
 		{55F49CE3-4B8B-4E61-862A-F197C4DBE960}.Release|x86.Build.0 = Release|Any CPU
+		{A7555C24-9A94-4769-A328-7744F5978848}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A7555C24-9A94-4769-A328-7744F5978848}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A7555C24-9A94-4769-A328-7744F5978848}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A7555C24-9A94-4769-A328-7744F5978848}.Debug|x64.Build.0 = Debug|Any CPU
+		{A7555C24-9A94-4769-A328-7744F5978848}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A7555C24-9A94-4769-A328-7744F5978848}.Debug|x86.Build.0 = Debug|Any CPU
+		{A7555C24-9A94-4769-A328-7744F5978848}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A7555C24-9A94-4769-A328-7744F5978848}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A7555C24-9A94-4769-A328-7744F5978848}.Release|x64.ActiveCfg = Release|Any CPU
+		{A7555C24-9A94-4769-A328-7744F5978848}.Release|x64.Build.0 = Release|Any CPU
+		{A7555C24-9A94-4769-A328-7744F5978848}.Release|x86.ActiveCfg = Release|Any CPU
+		{A7555C24-9A94-4769-A328-7744F5978848}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -97,5 +111,6 @@ Global
 		{E31EA3E3-1EC6-4DAB-8C1F-8047A6A7C7C8} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{3EFC6FAE-EF73-44BE-AF38-2AFB64312638} = {0C88DD14-F956-CE84-757C-A364CCF449FC}
 		{55F49CE3-4B8B-4E61-862A-F197C4DBE960} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{A7555C24-9A94-4769-A328-7744F5978848} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal
