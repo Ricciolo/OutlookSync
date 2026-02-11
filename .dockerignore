@@ -1,0 +1,44 @@
+# Ignore Git files
+.git
+.gitignore
+.gitattributes
+
+# Ignore build outputs
+**/bin/
+**/obj/
+**/out/
+
+# Ignore test results
+**/TestResults/
+
+# Ignore IDE and editor files
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Ignore documentation (will be copied if needed)
+*.md
+!README.md
+
+# Ignore CI/CD files
+.github/
+
+# Ignore local development files
+**/*.user
+**/*.suo
+**/*.cache
+**/project.lock.json
+
+# Ignore logs
+*.log
+
+# Ignore packages
+**/packages/
+
+# Ignore temporary files
+**/tmp/
+**/temp/
