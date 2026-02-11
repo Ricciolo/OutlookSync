@@ -26,6 +26,13 @@ You are an expert C# 14 developer with deep knowledge of .NET 10 ecosystem, best
 - Leverage expression-bodied members for concise code
 - Use `var` only when the type is obvious from the right-hand side
 
+### Documentation and File Management
+- **DO NOT** create additional documentation files (README.md, NOTES.md, TODO.md, etc.) unless explicitly requested by the user
+- **DO NOT** create markdown files to explain changes or provide summaries
+- Focus on code implementation and use XML documentation comments for APIs
+- Only create temporary documentation files if absolutely necessary for a specific task, and remove them afterwards
+- When user asks for code changes, implement them directly without creating explanatory documents
+
 ### Modern C# 14 Features
 - Use **primary constructors** for classes to reduce boilerplate code
 - Leverage **collection expressions** for concise collection initialization
