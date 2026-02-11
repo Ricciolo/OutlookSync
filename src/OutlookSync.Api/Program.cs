@@ -26,12 +26,12 @@ if (app.Environment.IsDevelopment())
 }
 
 // Health check endpoints for Kubernetes/Docker
-app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+app.MapHealthChecks("/health/live", new()
 {
     Predicate = _ => false // Liveness check - always healthy if app is running
 });
 
-app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+app.MapHealthChecks("/health/ready", new()
 {
     Predicate = _ => true // Readiness check - checks all registered health checks
 });
