@@ -1,15 +1,18 @@
-using OutlookSync.Domain.Common;
+﻿using OutlookSync.Domain.Common;
 
-namespace OutlookSync.Infrastructure.Repositories;
+namespace OutlookSync.Domain.Repositories;
 
 /// <summary>
 /// Generic repository interface
 /// </summary>
 public interface IRepository<T> where T : Entity, IAggregateRoot
 {
-    Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Gets a queryable for advanced queries
+    /// </summary>
+    IQueryable<T> Query { get; }
     
-    Task<IEnumerable<T>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     
     Task AddAsync(T entity, CancellationToken cancellationToken = default);
     

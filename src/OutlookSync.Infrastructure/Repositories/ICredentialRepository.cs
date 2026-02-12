@@ -4,8 +4,9 @@ using OutlookSync.Domain.Repositories;
 namespace OutlookSync.Infrastructure.Repositories;
 
 /// <summary>
-/// Infrastructure-specific marker for Calendar repository
+/// Infrastructure-specific marker for Credential repository
 /// </summary>
-public interface ICalendarRepository : Domain.Repositories.ICalendarRepository
+public interface ICredentialRepository : Domain.Repositories.ICredentialRepository
 {
 }
+

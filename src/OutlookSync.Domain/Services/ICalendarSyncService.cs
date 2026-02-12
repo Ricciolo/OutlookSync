@@ -1,4 +1,4 @@
-using OutlookSync.Domain.Aggregates;
+﻿using OutlookSync.Domain.Aggregates;
 
 namespace OutlookSync.Domain.Services;
 
@@ -7,5 +7,5 @@ namespace OutlookSync.Domain.Services;
 /// </summary>
 public interface ICalendarSyncService
 {
-    Task<SyncResult> SyncCalendarAsync(Calendar calendar, Device device, CancellationToken cancellationToken = default);
+    Task<SyncResult> SyncCalendarAsync(Calendar calendar, Credential credential, CancellationToken cancellationToken = default);
 }

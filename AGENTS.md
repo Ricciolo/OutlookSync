@@ -118,6 +118,14 @@ string json = """
 - Depend on abstractions (interfaces) not concrete implementations
 - Avoid service locator anti-pattern
 
+#### Service Registration Organization
+- Create `ServiceCollectionExtensions` in each layer's `Extensions` namespace
+- **Infrastructure**: `AddInfrastructure(services, configuration)` - registers DbContext, Repositories, UnitOfWork
+- **Application**: `AddApplication(services)` - registers application services and domain service implementations
+- **API/Presentation**: `AddProjectServices(services, configuration)` - orchestrates all layer registrations
+- Call the main extension method from `Program.cs`
+- **Required Packages**: `Microsoft.Extensions.DependencyInjection.Abstractions` (Application, Infrastructure), `Microsoft.Extensions.Configuration.Abstractions` (Infrastructure)
+
 ### Error Handling
 - Use specific exception types
 - Don't catch and ignore exceptions

@@ -1,19 +1,28 @@
-using OutlookSync.Domain.Aggregates;
-using OutlookSync.Domain.Events;
+﻿using OutlookSync.Domain.Aggregates;
+using OutlookSync.Domain.ValueObjects;
 
 namespace OutlookSync.Domain.Tests.Aggregates;
 
 public class CalendarTests
 {
+    private static SyncConfiguration CreateDefaultConfiguration() => new()
+    {
+        Interval = SyncInterval.Every30Minutes(),
+        StartDate = DateTime.UtcNow,
+        IsPrivate = false,
+        FieldSelection = CalendarFieldSelection.All()
+    };
+
     [Fact]
-    public void RecordSuccessfulSync_WithValidItems_ShouldUpdateStatsAndRaiseEvent()
+    public void RecordSuccessfulSync_WithValidItems_ShouldUpdateStats()
     {
         // Arrange
         var calendar = new Calendar
         {
             Name = "Test Calendar",
             ExternalId = "cal_123",
-            DeviceId = Guid.NewGuid()
+            CredentialId = Guid.CreateVersion7(),
+            Configuration = CreateDefaultConfiguration()
         };
         var itemsSynced = 10;
 
@@ -22,43 +31,18 @@ public class CalendarTests
 
         // Assert
         Assert.NotNull(calendar.LastSyncAt);
-        Assert.Equal(itemsSynced, calendar.TotalItemsSynced);
-        Assert.Single(calendar.DomainEvents);
-        
-        var syncEvent = Assert.IsType<CalendarSyncedEvent>(calendar.DomainEvents.First());
-        Assert.Equal(calendar.Id, syncEvent.CalendarId);
-        Assert.Equal(itemsSynced, syncEvent.ItemsSynced);
     }
 
     [Fact]
-    public void RecordSuccessfulSync_MultipleTimes_ShouldAccumulateTotal()
+    public void RecordFailedSync_WithReason_ShouldUpdateLastSync()
     {
         // Arrange
         var calendar = new Calendar
         {
             Name = "Test Calendar",
             ExternalId = "cal_123",
-            DeviceId = Guid.NewGuid()
-        };
-
-        // Act
-        calendar.RecordSuccessfulSync(10);
-        calendar.RecordSuccessfulSync(5);
-
-        // Assert
-        Assert.Equal(15, calendar.TotalItemsSynced);
-        Assert.Equal(2, calendar.DomainEvents.Count);
-    }
-
-    [Fact]
-    public void RecordFailedSync_WithReason_ShouldRaiseFailedEvent()
-    {
-        // Arrange
-        var calendar = new Calendar
-        {
-            Name = "Test Calendar",
-            ExternalId = "cal_123",
-            DeviceId = Guid.NewGuid()
+            CredentialId = Guid.CreateVersion7(),
+            Configuration = CreateDefaultConfiguration()
         };
         var reason = "Network error";
 
@@ -67,11 +51,6 @@ public class CalendarTests
 
         // Assert
         Assert.NotNull(calendar.LastSyncAt);
-        Assert.Single(calendar.DomainEvents);
-        
-        var failedEvent = Assert.IsType<CalendarSyncFailedEvent>(calendar.DomainEvents.First());
-        Assert.Equal(calendar.Id, failedEvent.CalendarId);
-        Assert.Equal(reason, failedEvent.Reason);
     }
 
     [Fact]
@@ -82,7 +61,8 @@ public class CalendarTests
         {
             Name = "Test Calendar",
             ExternalId = "cal_123",
-            DeviceId = Guid.NewGuid()
+            CredentialId = Guid.CreateVersion7(),
+            Configuration = CreateDefaultConfiguration()
         };
         calendar.Disable();
 
@@ -101,7 +81,8 @@ public class CalendarTests
         {
             Name = "Test Calendar",
             ExternalId = "cal_123",
-            DeviceId = Guid.NewGuid()
+            CredentialId = Guid.CreateVersion7(),
+            Configuration = CreateDefaultConfiguration()
         };
 
         // Act
@@ -109,5 +90,33 @@ public class CalendarTests
 
         // Assert
         Assert.False(calendar.IsEnabled);
+    }
+
+    [Fact]
+    public void UpdateConfiguration_WithValidConfiguration_ShouldUpdateAndMarkAsUpdated()
+    {
+        // Arrange
+        var calendar = new Calendar
+        {
+            Name = "Test Calendar",
+            ExternalId = "cal_123",
+            CredentialId = Guid.CreateVersion7(),
+            Configuration = CreateDefaultConfiguration()
+        };
+
+        var newConfig = new SyncConfiguration
+        {
+            Interval = SyncInterval.Hourly(),
+            StartDate = DateTime.UtcNow.AddDays(1),
+            IsPrivate = true,
+            FieldSelection = CalendarFieldSelection.Essential()
+        };
+
+        // Act
+        calendar.UpdateConfiguration(newConfig);
+
+        // Assert
+        Assert.Equal(newConfig, calendar.Configuration);
+        Assert.NotNull(calendar.UpdatedAt);
     }
 }

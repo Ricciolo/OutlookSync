@@ -26,7 +26,7 @@ namespace OutlookSync.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("DeviceId")
+                    b.Property<Guid>("CredentialId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ExternalId")
@@ -45,11 +45,7 @@ namespace OutlookSync.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Owner")
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("TotalItemsSynced")
+                    b.Property<int>("SyncDaysForward")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime?>("UpdatedAt")
@@ -63,7 +59,7 @@ namespace OutlookSync.Infrastructure.Migrations
                     b.ToTable("Calendars", (string)null);
                 });
 
-            modelBuilder.Entity("OutlookSync.Domain.Aggregates.Device", b =>
+            modelBuilder.Entity("OutlookSync.Domain.Aggregates.Credential", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -74,6 +70,15 @@ namespace OutlookSync.Infrastructure.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RefreshToken")
+                        .HasMaxLength(2000)
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("TokenAcquiredAt")
@@ -90,80 +95,14 @@ namespace OutlookSync.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Devices", (string)null);
+                    b.ToTable("Credentials", (string)null);
                 });
 
-            modelBuilder.Entity("OutlookSync.Domain.Aggregates.SyncConfig", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("CalendarId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("IsEnabled")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime?>("LastSyncAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("LastSyncStatus")
-                        .HasMaxLength(500)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CalendarId")
-                        .IsUnique();
-
-                    b.ToTable("SyncConfigs", (string)null);
-                });
-
-            modelBuilder.Entity("OutlookSync.Domain.Aggregates.Device", b =>
-                {
-                    b.OwnsOne("OutlookSync.Domain.ValueObjects.DeviceInfo", "Info", b1 =>
-                        {
-                            b1.Property<Guid>("DeviceId")
-                                .HasColumnType("TEXT");
-
-                            b1.Property<string>("Description")
-                                .HasMaxLength(500)
-                                .HasColumnType("TEXT");
-
-                            b1.Property<string>("Name")
-                                .IsRequired()
-                                .HasMaxLength(200)
-                                .HasColumnType("TEXT");
-
-                            b1.Property<string>("Type")
-                                .IsRequired()
-                                .HasMaxLength(50)
-                                .HasColumnType("TEXT");
-
-                            b1.HasKey("DeviceId");
-
-                            b1.ToTable("Devices");
-
-                            b1.WithOwner()
-                                .HasForeignKey("DeviceId");
-                        });
-
-                    b.Navigation("Info")
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("OutlookSync.Domain.Aggregates.SyncConfig", b =>
+            modelBuilder.Entity("OutlookSync.Domain.Aggregates.Calendar", b =>
                 {
                     b.OwnsOne("OutlookSync.Domain.ValueObjects.SyncConfiguration", "Configuration", b1 =>
                         {
-                            b1.Property<Guid>("SyncConfigId")
+                            b1.Property<Guid>("CalendarId")
                                 .HasColumnType("TEXT");
 
                             b1.Property<bool>("IsPrivate")
@@ -172,16 +111,16 @@ namespace OutlookSync.Infrastructure.Migrations
                             b1.Property<DateTime>("StartDate")
                                 .HasColumnType("TEXT");
 
-                            b1.HasKey("SyncConfigId");
+                            b1.HasKey("CalendarId");
 
-                            b1.ToTable("SyncConfigs");
+                            b1.ToTable("Calendars");
 
                             b1.WithOwner()
-                                .HasForeignKey("SyncConfigId");
+                                .HasForeignKey("CalendarId");
 
                             b1.OwnsOne("OutlookSync.Domain.ValueObjects.CalendarFieldSelection", "FieldSelection", b2 =>
                                 {
-                                    b2.Property<Guid>("SyncConfigurationSyncConfigId")
+                                    b2.Property<Guid>("SyncConfigurationCalendarId")
                                         .HasColumnType("TEXT");
 
                                     b2.Property<bool>("Attendees")
@@ -211,17 +150,17 @@ namespace OutlookSync.Infrastructure.Migrations
                                     b2.Property<bool>("Subject")
                                         .HasColumnType("INTEGER");
 
-                                    b2.HasKey("SyncConfigurationSyncConfigId");
+                                    b2.HasKey("SyncConfigurationCalendarId");
 
-                                    b2.ToTable("SyncConfigs");
+                                    b2.ToTable("Calendars");
 
                                     b2.WithOwner()
-                                        .HasForeignKey("SyncConfigurationSyncConfigId");
+                                        .HasForeignKey("SyncConfigurationCalendarId");
                                 });
 
                             b1.OwnsOne("OutlookSync.Domain.ValueObjects.SyncInterval", "Interval", b2 =>
                                 {
-                                    b2.Property<Guid>("SyncConfigurationSyncConfigId")
+                                    b2.Property<Guid>("SyncConfigurationCalendarId")
                                         .HasColumnType("TEXT");
 
                                     b2.Property<string>("CronExpression")
@@ -231,12 +170,12 @@ namespace OutlookSync.Infrastructure.Migrations
                                     b2.Property<int>("Minutes")
                                         .HasColumnType("INTEGER");
 
-                                    b2.HasKey("SyncConfigurationSyncConfigId");
+                                    b2.HasKey("SyncConfigurationCalendarId");
 
-                                    b2.ToTable("SyncConfigs");
+                                    b2.ToTable("Calendars");
 
                                     b2.WithOwner()
-                                        .HasForeignKey("SyncConfigurationSyncConfigId");
+                                        .HasForeignKey("SyncConfigurationCalendarId");
                                 });
 
                             b1.Navigation("FieldSelection")

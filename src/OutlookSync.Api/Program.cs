@@ -1,4 +1,4 @@
-using OutlookSync.Api.Extensions;
+﻿using OutlookSync.Api.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,14 +14,6 @@ builder.Services.AddOutlookSyncServices(builder.Configuration);
 // Add health checks for cloud-native deployments
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<OutlookSync.Infrastructure.Persistence.OutlookSyncDbContext>();
-
-// Configure Kestrel for cloud-native environments
-builder.WebHost.ConfigureKestrel(options =>
-{
-    // Listen on port from environment variable or default to 8080
-    var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-    options.ListenAnyIP(int.Parse(port));
-});
 
 var app = builder.Build();
 

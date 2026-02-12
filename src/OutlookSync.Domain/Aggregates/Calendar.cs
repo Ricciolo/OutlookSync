@@ -1,5 +1,5 @@
-using OutlookSync.Domain.Common;
-using OutlookSync.Domain.Events;
+﻿using OutlookSync.Domain.Common;
+using OutlookSync.Domain.ValueObjects;
 
 namespace OutlookSync.Domain.Aggregates;
 
@@ -8,23 +8,25 @@ namespace OutlookSync.Domain.Aggregates;
 /// </summary>
 public class Calendar : Entity, IAggregateRoot
 {
-    private readonly List<DomainEvent> _domainEvents = [];
-    
     public required string Name { get; init; }
     
     public required string ExternalId { get; init; }
     
-    public required Guid DeviceId { get; init; }
-    
-    public string? Owner { get; init; }
+    public required Guid CredentialId { get; init; }
     
     public bool IsEnabled { get; private set; } = true;
     
-    public int TotalItemsSynced { get; private set; }
+    public int SyncDaysForward { get; set; } = 30;
+    
+    private SyncConfiguration _configuration = null!;
+    
+    public required SyncConfiguration Configuration
+    {
+        get => _configuration;
+        init => _configuration = value;
+    }
     
     public DateTime? LastSyncAt { get; private set; }
-    
-    public IReadOnlyCollection<DomainEvent> DomainEvents => _domainEvents.AsReadOnly();
     
     public void Enable()
     {
@@ -38,15 +40,21 @@ public class Calendar : Entity, IAggregateRoot
         MarkAsUpdated();
     }
     
+    public void UpdateConfiguration(SyncConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(configuration, nameof(configuration));
+        
+        _configuration = configuration;
+        MarkAsUpdated();
+    }
+    
     public void RecordSuccessfulSync(int itemsSynced)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(itemsSynced, nameof(itemsSynced));
         
         LastSyncAt = DateTime.UtcNow;
-        TotalItemsSynced += itemsSynced;
         
         MarkAsUpdated();
-        _domainEvents.Add(new CalendarSyncedEvent(Id, DateTime.UtcNow, itemsSynced));
     }
     
     public void RecordFailedSync(string reason)
@@ -56,8 +64,5 @@ public class Calendar : Entity, IAggregateRoot
         LastSyncAt = DateTime.UtcNow;
         
         MarkAsUpdated();
-        _domainEvents.Add(new CalendarSyncFailedEvent(Id, DateTime.UtcNow, reason));
     }
-    
-    public void ClearEvents() => _domainEvents.Clear();
 }

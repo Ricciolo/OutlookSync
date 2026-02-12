@@ -20,4 +20,8 @@
     <ProjectReference Include="..\OutlookSync.Infrastructure\OutlookSync.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Controllers\" />
+  </ItemGroup>
+
 </Project>

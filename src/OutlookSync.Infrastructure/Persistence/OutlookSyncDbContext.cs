@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using OutlookSync.Domain.Aggregates;
 
 namespace OutlookSync.Infrastructure.Persistence;
@@ -10,9 +10,7 @@ public class OutlookSyncDbContext(DbContextOptions<OutlookSyncDbContext> options
 {
     public DbSet<Calendar> Calendars => Set<Calendar>();
     
-    public DbSet<Device> Devices => Set<Device>();
-    
-    public DbSet<SyncConfig> SyncConfigs => Set<SyncConfig>();
+    public DbSet<Credential> Credentials => Set<Credential>();
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

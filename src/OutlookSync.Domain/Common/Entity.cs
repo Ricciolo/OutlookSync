@@ -1,11 +1,11 @@
-namespace OutlookSync.Domain.Common;
+﻿namespace OutlookSync.Domain.Common;
 
 /// <summary>
 /// Base class for all entities with identity
 /// </summary>
 public abstract class Entity
 {
-    public Guid Id { get; protected init; } = Guid.NewGuid();
+    public Guid Id { get; protected init; } = Guid.CreateVersion7();
     
     public DateTime CreatedAt { get; protected init; } = DateTime.UtcNow;
     
