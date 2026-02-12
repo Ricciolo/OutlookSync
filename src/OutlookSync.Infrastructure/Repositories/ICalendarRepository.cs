@@ -1,7 +1,4 @@
-﻿using OutlookSync.Domain.Aggregates;
-using OutlookSync.Domain.Repositories;
-
-namespace OutlookSync.Infrastructure.Repositories;
+﻿namespace OutlookSync.Infrastructure.Repositories;
 
 /// <summary>
 /// Infrastructure-specific marker for Calendar repository
