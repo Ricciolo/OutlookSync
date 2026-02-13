@@ -8,6 +8,7 @@
   <Folder Name="/test/">
     <Project Path="test/OutlookSync.Api.Tests/OutlookSync.Api.Tests.csproj" />
     <Project Path="test/OutlookSync.Domain.Tests/OutlookSync.Domain.Tests.csproj" />
+    <Project Path="test/OutlookSync.Infrastructure.Tests/OutlookSync.Infrastructure.Tests.csproj" />
   </Folder>
   <Properties Name="Configuration">
     <Property Name="Debug|Any CPU" />

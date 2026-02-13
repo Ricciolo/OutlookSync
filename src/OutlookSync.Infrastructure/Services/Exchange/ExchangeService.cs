@@ -62,7 +62,7 @@ public class ExchangeService(ILogger<ExchangeService> logger, RetryPolicy retryP
                 PropertySet = CreatePropertySet()
             };
             
-            var folderId = ParseCalendarId(calendarId);
+            var folderId = GetDefaultCalendarFolderId();
             var appointments = await System.Threading.Tasks.Task.Run(
                 () => _service!.FindAppointments(folderId, view),
                 cancellationToken);
@@ -106,7 +106,7 @@ public class ExchangeService(ILogger<ExchangeService> logger, RetryPolicy retryP
                 IsAllDayEvent = calendarEvent.IsAllDay
             };
             
-            var folderId = ParseCalendarId(calendarId);
+            var folderId = GetDefaultCalendarFolderId();
             await System.Threading.Tasks.Task.Run(() => appointment.Save(folderId), cancellationToken);
             
             logger.LogInformation(
@@ -214,10 +214,10 @@ public class ExchangeService(ILogger<ExchangeService> logger, RetryPolicy retryP
         Func<System.Threading.Tasks.Task<T>> operation,
         CancellationToken cancellationToken)
     {
-        var attemptNumber = 0;
         Exception? lastException = null;
         
-        while (attemptNumber < _retryPolicy.MaxRetryAttempts)
+        // Attempt 0 is the initial try, then we retry up to MaxRetryAttempts times
+        for (var attemptNumber = 0; attemptNumber <= _retryPolicy.MaxRetryAttempts; attemptNumber++)
         {
             try
             {
@@ -226,23 +226,23 @@ public class ExchangeService(ILogger<ExchangeService> logger, RetryPolicy retryP
             catch (ServiceResponseException ex) when (IsTransientError(ex))
             {
                 lastException = ex;
-                attemptNumber++;
                 
+                // If we've exhausted all retries, break
                 if (attemptNumber >= _retryPolicy.MaxRetryAttempts)
                 {
                     logger.LogError(
                         ex,
-                        "Operation failed after {Attempts} attempts",
+                        "Operation failed after initial attempt and {Attempts} retry attempts",
                         attemptNumber);
                     break;
                 }
                 
-                var delay = _retryPolicy.CalculateDelay(attemptNumber - 1);
+                var delay = _retryPolicy.CalculateDelay(attemptNumber);
                 logger.LogWarning(
                     ex,
-                    "Transient error occurred (attempt {Attempt}/{MaxAttempts}). Retrying in {Delay}ms...",
-                    attemptNumber,
-                    _retryPolicy.MaxRetryAttempts,
+                    "Transient error occurred (attempt {Attempt}/{TotalAttempts}). Retrying in {Delay}ms...",
+                    attemptNumber + 1,
+                    _retryPolicy.MaxRetryAttempts + 1,
                     delay);
                 
                 await System.Threading.Tasks.Task.Delay(delay, cancellationToken);
@@ -255,7 +255,7 @@ public class ExchangeService(ILogger<ExchangeService> logger, RetryPolicy retryP
         }
         
         throw new InvalidOperationException(
-            $"Operation failed after {attemptNumber} attempts",
+            $"Operation failed after initial attempt and {_retryPolicy.MaxRetryAttempts} retry attempts",
             lastException);
     }
     
@@ -304,12 +304,12 @@ public class ExchangeService(ILogger<ExchangeService> logger, RetryPolicy retryP
     }
     
     /// <summary>
-    /// Parses calendar ID to FolderId
+    /// Gets the default calendar folder ID
+    /// Currently always returns the default Calendar folder
+    /// TODO: In the future, extend to support custom calendar IDs
     /// </summary>
-    private static FolderId ParseCalendarId(string _)
+    private static FolderId GetDefaultCalendarFolderId()
     {
-        // For now, we'll use WellKnownFolderName.Calendar
-        // In the future, this could be extended to support custom calendar IDs
         return new FolderId(WellKnownFolderName.Calendar);
     }
     
