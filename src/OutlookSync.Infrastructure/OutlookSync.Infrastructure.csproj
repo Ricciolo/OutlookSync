@@ -5,17 +5,23 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Azure.Identity" Version="1.15.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.3">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Exchange.WebServices.NETStandard" Version="2.0.0-beta3" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.3" />
   </ItemGroup>
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- Suppress vulnerability warnings for EWS SDK transitive dependencies (System.Drawing.Common, System.Security.Cryptography.Xml) -->
+    <!-- This is a known limitation of using legacy EWS SDK. Consider migrating to Microsoft Graph API in the future. -->
+    <NoWarn>$(NoWarn);NU1902;NU1904</NoWarn>
   </PropertyGroup>
 
 </Project>
