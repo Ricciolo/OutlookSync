@@ -26,17 +26,15 @@ public static class ServiceCollectionExtensions
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         
+        // Exchange Configuration
+        var exchangeConfig = ExchangeConfiguration.CreateDefault();
+        services.AddSingleton(exchangeConfig);
+        
+        // Exchange Authentication Service
+        services.AddSingleton<IExchangeAuthenticationService, ExchangeAuthenticationService>();
+        
         // Calendar Event Repository Factory
         services.AddSingleton<ICalendarEventRepositoryFactory, CalendarEventRepositoryFactory>();
-        
-        // Exchange Services
-        services.AddSingleton<IExchangeAuthenticationService, ExchangeAuthenticationService>();
-        services.AddScoped<IExchangeService>(sp =>
-        {
-            var logger = sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ExchangeService>>();
-            var retryPolicy = RetryPolicy.CreateDefault();
-            return new ExchangeService(logger, retryPolicy);
-        });
 
         return services;
     }

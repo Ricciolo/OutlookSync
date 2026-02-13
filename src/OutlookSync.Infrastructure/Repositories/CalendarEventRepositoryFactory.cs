@@ -1,12 +1,16 @@
-﻿using OutlookSync.Domain.Aggregates;
+﻿using Microsoft.Extensions.Logging;
+using OutlookSync.Domain.Aggregates;
 using OutlookSync.Domain.Repositories;
+using OutlookSync.Domain.ValueObjects;
 
 namespace OutlookSync.Infrastructure.Repositories;
 
 /// <summary>
 /// Factory implementation for creating calendar event repositories
 /// </summary>
-public class CalendarEventRepositoryFactory : ICalendarEventRepositoryFactory
+public class CalendarEventRepositoryFactory(
+    ILogger<ExchangeCalendarEventRepository> logger,
+    ExchangeConfiguration exchangeConfiguration) : ICalendarEventRepositoryFactory
 {
     public ICalendarEventRepository Create(Calendar calendar, Credential credential)
     {
@@ -26,8 +30,13 @@ public class CalendarEventRepositoryFactory : ICalendarEventRepositoryFactory
             throw new InvalidOperationException($"Access token is missing for calendar '{calendar.Name}'");
         }
 
-        // For now, return a mock implementation
-        // In the future, this could create different implementations based on calendar type
-        return new MockCalendarEventRepository(calendar.Id);
+        // Create Exchange calendar event repository
+        return new ExchangeCalendarEventRepository(
+            credential.AccessToken,
+            exchangeConfiguration.ServiceUrl,
+            calendar.Id,
+            calendar.ExternalId,
+            logger,
+            RetryPolicy.CreateDefault());
     }
 }
