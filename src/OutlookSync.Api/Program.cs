@@ -1,3 +1,5 @@
+﻿using OutlookSync.Api.Extensions;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -6,18 +8,17 @@ builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
-// Add health checks for cloud-native deployments
-builder.Services.AddHealthChecks();
+// Add OutlookSync services (Domain, Application, Infrastructure)
+builder.Services.AddOutlookSyncServices(builder.Configuration);
 
-// Configure Kestrel for cloud-native environments
-builder.WebHost.ConfigureKestrel(options =>
-{
-    // Listen on port from environment variable or default to 8080
-    var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-    options.ListenAnyIP(int.Parse(port));
-});
+// Add health checks for cloud-native deployments
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<OutlookSync.Infrastructure.Persistence.OutlookSyncDbContext>();
 
 var app = builder.Build();
+
+// Apply database migrations
+await app.ApplyMigrationsAsync();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
