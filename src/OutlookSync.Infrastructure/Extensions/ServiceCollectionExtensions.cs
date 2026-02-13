@@ -2,8 +2,11 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OutlookSync.Domain.Repositories;
+using OutlookSync.Domain.Services;
+using OutlookSync.Domain.ValueObjects;
 using OutlookSync.Infrastructure.Persistence;
 using OutlookSync.Infrastructure.Repositories;
+using OutlookSync.Infrastructure.Services.Exchange;
 
 namespace OutlookSync.Infrastructure.Extensions;
 
@@ -25,6 +28,15 @@ public static class ServiceCollectionExtensions
         
         // Calendar Event Repository Factory
         services.AddSingleton<ICalendarEventRepositoryFactory, CalendarEventRepositoryFactory>();
+        
+        // Exchange Services
+        services.AddSingleton<IExchangeAuthenticationService, ExchangeAuthenticationService>();
+        services.AddScoped<IExchangeService>(sp =>
+        {
+            var logger = sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ExchangeService>>();
+            var retryPolicy = RetryPolicy.CreateDefault();
+            return new ExchangeService(logger, retryPolicy);
+        });
 
         return services;
     }
