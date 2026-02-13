@@ -13,6 +13,10 @@ namespace OutlookSync.Infrastructure.Repositories;
 /// </summary>
 public class ExchangeCalendarEventRepository : ICalendarEventRepository
 {
+    private const string CopiedFromMarker = "[Copied from:";
+    private const int DefaultPastDaysToRetrieve = 7;
+    private const int DefaultFutureDaysToRetrieve = 30;
+    
     private readonly EwsExchangeService _service;
     private readonly Guid _calendarId;
     private readonly ILogger<ExchangeCalendarEventRepository> _logger;
@@ -54,9 +58,9 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
 
         return await ExecuteWithRetryAsync(async () =>
         {
-            // Get events for a reasonable time window (e.g., 30 days forward and 7 days back)
-            var startDate = DateTime.Now.AddDays(-7);
-            var endDate = DateTime.Now.AddDays(30);
+            // Get events for a configurable time window
+            var startDate = DateTime.Now.AddDays(-DefaultPastDaysToRetrieve);
+            var endDate = DateTime.Now.AddDays(DefaultFutureDaysToRetrieve);
 
             var view = new CalendarView(startDate, endDate)
             {
@@ -137,10 +141,11 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
                 IsAllDayEvent = calendarEvent.IsAllDay
             };
 
-            // Store metadata about copied events in the body or extended properties
+            // Store metadata about copied events in the body
+            // Note: Extended properties would be better but require additional setup
             if (calendarEvent.IsCopiedEvent && calendarEvent.OriginalEventId != null)
             {
-                var metadata = $"\n\n[Copied from: {calendarEvent.OriginalEventId}]";
+                var metadata = $"\n\n{CopiedFromMarker} {calendarEvent.OriginalEventId}]";
                 appointment.Body = new MessageBody(
                     BodyType.Text,
                     (calendarEvent.Body ?? string.Empty) + metadata);
@@ -268,16 +273,17 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
     {
         // Check if this is a copied event by looking for metadata in body
         var body = appointment.Body.Text ?? string.Empty;
-        var isCopiedEvent = body.Contains("[Copied from:");
+        var isCopiedEvent = body.Contains(CopiedFromMarker, StringComparison.Ordinal);
         string? originalEventId = null;
 
         if (isCopiedEvent)
         {
-            var startIndex = body.IndexOf("[Copied from:", StringComparison.Ordinal);
+            var startIndex = body.IndexOf(CopiedFromMarker, StringComparison.Ordinal);
             var endIndex = body.IndexOf("]", startIndex, StringComparison.Ordinal);
             if (startIndex >= 0 && endIndex > startIndex)
             {
-                originalEventId = body.Substring(startIndex + 14, endIndex - startIndex - 14).Trim();
+                var metadataStart = startIndex + CopiedFromMarker.Length;
+                originalEventId = body.Substring(metadataStart, endIndex - metadataStart).Trim();
                 // Remove metadata from body
                 body = body.Substring(0, startIndex).Trim();
             }
@@ -298,7 +304,9 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
             CalendarId = _calendarId,
             IsCopiedEvent = isCopiedEvent,
             OriginalEventId = originalEventId,
-            SourceCalendarId = isCopiedEvent ? (Guid?)Guid.Empty : null // Placeholder, would need extended properties
+            // Note: SourceCalendarId cannot be reliably determined from current metadata
+            // Would require using extended properties for proper implementation
+            SourceCalendarId = isCopiedEvent ? null : null
         };
     }
 }
