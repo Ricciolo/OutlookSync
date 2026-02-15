@@ -158,6 +158,38 @@ string json = """
 - Implement proper authentication and authorization
 - Keep dependencies up to date
 
+## Blazor Best Practices
+- **Always use `@Assets` directive** for referencing static files (CSS, images, fonts) in Blazor components
+- **Use `IJSRuntime.InvokeAsync` with dynamic imports** for component-specific JavaScript
+- Use `@inject` directive and avoid the usage of `[Inject]` in code-behind files for better separation of concerns
+- Use underscore prefix for private fields on blazor code-behind files
+- Avoid loading JavaScript globally when it's only needed by specific components
+- Use `import()` for lazy-loading JavaScript modules
+- For generic/shared JavaScript, global loading is acceptable
+- **NEVER use inline `@code` blocks in `.razor` files**
+- **ALWAYS use code-behind files** (partial classes) for component logic
+- Keep `.razor` files focused on markup and data binding only
+- Separation improves testability, maintainability, and follows SRP
+- Use `ComponentBase` as the base class for components
+- Leverage dependency injection via `[Inject]` attribute
+- Use `[Parameter]` for component parameters
+- Implement `IDisposable` or `IAsyncDisposable` for cleanup
+- Use `StateHasChanged()` judiciously to trigger re-renders
+- Prefer asynchronous patterns for I/O operations
+- Use cascading parameters for shared state across component hierarchy
+- Avoid unnecessary re-renders by using `ShouldRender()` override
+- Use `@key` directive for list rendering to help diff algorithm
+- Leverage virtualization for large lists (`Virtualize<T>` component)
+- Minimize JavaScript interop calls (batching when possible)
+- Use streaming rendering for Server-Side Blazor
+- Consider prerendering for better initial load performance
+- Validate all user input in components
+- Use `[Authorize]` attribute for protected pages
+- Implement proper authentication state management
+- Sanitize HTML content when using `MarkupString`
+- Never trust client-side validation alone
+- Use HTTPS in production
+
 ## SOLID Principles
 
 ### Single Responsibility Principle (SRP)

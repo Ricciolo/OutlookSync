@@ -33,13 +33,20 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
                                                                 SourceCalendarIdProperty
                                                             };
 
-    private EwsExchangeService? _service;
     private readonly Calendar _calendar;
     private readonly Credential _credential;
     private readonly ILogger<ExchangeCalendarEventRepository> _logger;
     private readonly RetryPolicy _retryPolicy;
+    private EwsExchangeService? _service;
     private bool _isInitialized;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ExchangeCalendarEventRepository"/> class.
+    /// </summary>
+    /// <param name="calendar">The calendar aggregate.</param>
+    /// <param name="credential">The credential for authentication.</param>
+    /// <param name="logger">The logger instance.</param>
+    /// <param name="retryPolicy">The retry policy for transient failures (optional).</param>
     public ExchangeCalendarEventRepository(
         Calendar calendar,
         Credential credential,

@@ -73,12 +73,20 @@ public class Calendar : Entity, IAggregateRoot
         MarkAsUpdated();
     }
     
+    /// <summary>
+    /// Disables the calendar for synchronization.
+    /// </summary>
     public void Disable()
     {
         IsEnabled = false;
         MarkAsUpdated();
     }
     
+    /// <summary>
+    /// Updates the synchronization configuration for this calendar.
+    /// </summary>
+    /// <param name="configuration">The new synchronization configuration.</param>
+    /// <exception cref="ArgumentNullException">Thrown when configuration is null.</exception>
     public void UpdateConfiguration(SyncConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration, nameof(configuration));
@@ -87,6 +95,11 @@ public class Calendar : Entity, IAggregateRoot
         MarkAsUpdated();
     }
     
+    /// <summary>
+    /// Records a successful synchronization attempt.
+    /// </summary>
+    /// <param name="itemsSynced">The number of items successfully synchronized.</param>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when itemsSynced is negative.</exception>
     public void RecordSuccessfulSync(int itemsSynced)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(itemsSynced, nameof(itemsSynced));
@@ -96,6 +109,11 @@ public class Calendar : Entity, IAggregateRoot
         MarkAsUpdated();
     }
     
+    /// <summary>
+    /// Records a failed synchronization attempt.
+    /// </summary>
+    /// <param name="reason">The reason for the synchronization failure.</param>
+    /// <exception cref="ArgumentException">Thrown when reason is null, empty, or whitespace.</exception>
     public void RecordFailedSync(string reason)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(reason, nameof(reason));

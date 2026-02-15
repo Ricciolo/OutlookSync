@@ -16,25 +16,19 @@ public class CalendarsSyncService(
     IUnitOfWork unitOfWork,
     ILogger<CalendarsSyncService> logger) : ICalendarsSyncService
 {
-    private readonly ICalendarRepository _calendarRepository = calendarRepository;
-    private readonly ICredentialRepository _credentialRepository = credentialRepository;
-    private readonly ICalendarEventRepositoryFactory _calendarEventRepositoryFactory = calendarEventRepositoryFactory;
-    private readonly IUnitOfWork _unitOfWork = unitOfWork;
-    private readonly ILogger<CalendarsSyncService> _logger = logger;
-
     private const string CopiedEventMarker = "[SYNCED]";
 
     public async Task<CalendarsSyncResult> SyncAllCalendarsAsync(CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Starting synchronization of all calendars");
+        logger.LogInformation("Starting synchronization of all calendars");
 
-        var calendars = _calendarRepository.Query
+        var calendars = calendarRepository.Query
             .Where(c => c.IsEnabled)
             .ToList();
 
         if (calendars.Count == 0)
         {
-            _logger.LogWarning("No enabled calendars found for synchronization");
+            logger.LogWarning("No enabled calendars found for synchronization");
             return CalendarsSyncResult.Success(0, 0);
         }
 
@@ -69,23 +63,23 @@ public class CalendarsSyncService(
             {
                 failed++;
                 errors.Add($"Calendar {calendar.Name}: {ex.Message}");
-                _logger.LogError(ex, "Error syncing calendar {CalendarId}", calendar.Id);
+                logger.LogError(ex, "Error syncing calendar {CalendarId}", calendar.Id);
             }
         }
 
         // Save all changes at once
         try
         {
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            _logger.LogInformation("All changes saved successfully");
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            logger.LogInformation("All changes saved successfully");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to save changes after sync");
+            logger.LogError(ex, "Failed to save changes after sync");
             throw;
         }
 
-        _logger.LogInformation(
+        logger.LogInformation(
             "Synchronization completed. Total: {Total}, Successful: {Successful}, Failed: {Failed}, Events copied: {EventsCopied}",
             calendars.Count, successful, failed, totalEventsCopied);
 
@@ -99,7 +93,7 @@ public class CalendarsSyncService(
         IReadOnlyList<Calendar> targetCalendars,
         CancellationToken cancellationToken)
     {
-        var credential = await _credentialRepository.GetByIdAsync(sourceCalendar.CredentialId, cancellationToken);
+        var credential = await credentialRepository.GetByIdAsync(sourceCalendar.CredentialId, cancellationToken);
         if (credential == null)
         {
             return SyncResult.Failure($"Credential not found for calendar {sourceCalendar.Name}");
@@ -114,7 +108,7 @@ public class CalendarsSyncService(
         {
             if (targetCalendars.Count == 0)
             {
-                _logger.LogInformation("No target calendars found for {CalendarName}", sourceCalendar.Name);
+                logger.LogInformation("No target calendars found for {CalendarName}", sourceCalendar.Name);
                 return SyncResult.Success(0);
             }
 
@@ -122,7 +116,7 @@ public class CalendarsSyncService(
 
             // Create repository for this calendar with its credentials
             // The factory will validate the credential and token
-            var sourceRepository = _calendarEventRepositoryFactory.Create(sourceCalendar, credential);
+            var sourceRepository = calendarEventRepositoryFactory.Create(sourceCalendar, credential);
             
             // Initialize repository to verify connectivity and access
             await sourceRepository.InitAsync(cancellationToken);
@@ -135,7 +129,7 @@ public class CalendarsSyncService(
                 .Where(e => !e.IsCopiedEvent)
                 .ToList();
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Found {TotalEvents} events in {CalendarName}, {OriginalEvents} are original (not copied)",
                 sourceEvents.Count, sourceCalendar.Name, originalEvents.Count);
 
@@ -144,15 +138,15 @@ public class CalendarsSyncService(
             {
                 try
                 {
-                    var targetCredential = await _credentialRepository.GetByIdAsync(targetCalendar.CredentialId, cancellationToken);
+                    var targetCredential = await credentialRepository.GetByIdAsync(targetCalendar.CredentialId, cancellationToken);
                     if (targetCredential == null)
                     {
-                        _logger.LogWarning("Credential not found for target calendar {CalendarName}", targetCalendar.Name);
+                        logger.LogWarning("Credential not found for target calendar {CalendarName}", targetCalendar.Name);
                         continue;
                     }
 
                     // The factory will validate the credential and token
-                    var targetRepository = _calendarEventRepositoryFactory.Create(targetCalendar, targetCredential);
+                    var targetRepository = calendarEventRepositoryFactory.Create(targetCalendar, targetCredential);
                     
                     // Initialize repository to verify connectivity and access
                     await targetRepository.InitAsync(cancellationToken);
@@ -166,14 +160,14 @@ public class CalendarsSyncService(
                 }
                 catch (InvalidOperationException ex)
                 {
-                    _logger.LogWarning(ex, "Skipping target calendar {CalendarName} due to invalid credentials", targetCalendar.Name);
+                    logger.LogWarning(ex, "Skipping target calendar {CalendarName} due to invalid credentials", targetCalendar.Name);
                 }
             }
 
             sourceCalendar.RecordSuccessfulSync(totalEventsCopied);
-            await _calendarRepository.UpdateAsync(sourceCalendar, cancellationToken);
+            await calendarRepository.UpdateAsync(sourceCalendar, cancellationToken);
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Successfully synced {EventCount} events from {CalendarName}",
                 totalEventsCopied, sourceCalendar.Name);
 
@@ -181,9 +175,9 @@ public class CalendarsSyncService(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error syncing calendar {CalendarId}", sourceCalendar.Id);
+            logger.LogError(ex, "Error syncing calendar {CalendarId}", sourceCalendar.Id);
             sourceCalendar.RecordFailedSync(ex.Message);
-            await _calendarRepository.UpdateAsync(sourceCalendar, cancellationToken);
+            await calendarRepository.UpdateAsync(sourceCalendar, cancellationToken);
             return SyncResult.Failure(ex.Message);
         }
         finally
@@ -191,12 +185,12 @@ public class CalendarsSyncService(
             // Always update source credential as token cache may have been updated during sync
             try
             {
-                await _credentialRepository.UpdateAsync(credential, cancellationToken);
-                _logger.LogDebug("Credential updated for calendar {CalendarName}", sourceCalendar.Name);
+                await credentialRepository.UpdateAsync(credential, cancellationToken);
+                logger.LogDebug("Credential updated for calendar {CalendarName}", sourceCalendar.Name);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to update credential for calendar {CalendarId}", sourceCalendar.Id);
+                logger.LogError(ex, "Failed to update credential for calendar {CalendarId}", sourceCalendar.Id);
             }
         }
     }
@@ -222,7 +216,7 @@ public class CalendarsSyncService(
 
                 if (existingCopy != null)
                 {
-                    _logger.LogDebug("Event {EventId} already copied to {TargetCalendar}", 
+                    logger.LogDebug("Event {EventId} already copied to {TargetCalendar}", 
                         sourceEvent.ExternalId, targetCalendar.Name);
                     continue;
                 }
@@ -235,13 +229,13 @@ public class CalendarsSyncService(
 
                 eventsCopied++;
 
-                _logger.LogDebug(
+                logger.LogDebug(
                     "Copied event {EventSubject} from {SourceCalendar} to {TargetCalendar}",
                     sourceEvent.Subject, sourceCalendar.Name, targetCalendar.Name);
             }
             catch (Exception ex)
             {
-                _logger.LogError(
+                logger.LogError(
                     ex,
                     "Error copying event {EventId} from {SourceCalendar} to {TargetCalendar}",
                     sourceEvent.ExternalId, sourceCalendar.Name, targetCalendar.Name);

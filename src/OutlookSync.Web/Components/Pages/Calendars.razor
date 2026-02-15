@@ -1,9 +1,6 @@
 @page "/calendars"
 @rendermode InteractiveServer
-@using Microsoft.EntityFrameworkCore
-@using OutlookSync.Domain.Aggregates
-@using OutlookSync.Domain.Repositories
-@inject ICalendarRepository CalendarRepository
+@inject OutlookSync.Domain.Repositories.ICalendarRepository CalendarRepository
 
 <PageTitle>Calendars - OutlookSync</PageTitle>
 
@@ -22,14 +19,14 @@
         </button>
     </div>
 
-    @if (isLoading)
+    @if (_isLoading)
     {
         <div class="card text-center py-12">
             <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-outlook-blue"></div>
             <p class="mt-4 text-gray-600">Loading calendars...</p>
         </div>
     }
-    else if (calendars == null || !calendars.Any())
+    else if (_calendars == null || !_calendars.Any())
     {
         <!-- Empty State -->
         <div class="card text-center py-12">
@@ -47,7 +44,7 @@
     {
         <!-- Calendar List -->
         <div class="space-y-4">
-            @foreach (var calendar in calendars)
+            @foreach (var calendar in _calendars)
             {
                 <div class="card">
                     <div class="flex items-start justify-between">
@@ -87,7 +84,7 @@
                             </div>
                         </div>
                         <div class="flex items-center space-x-2">
-                            <button @onclick="() => ToggleCalendar(calendar)" 
+                            <button @onclick="() => ToggleCalendarAsync(calendar)" 
                                     class="@(calendar.IsEnabled ? "btn-secondary" : "btn-primary")">
                                 @(calendar.IsEnabled ? "Disable" : "Enable")
                             </button>
@@ -102,50 +99,3 @@
     }
 </div>
 
-@code {
-    private List<Calendar>? calendars;
-    private bool isLoading = true;
-
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadCalendars();
-    }
-
-    private async Task LoadCalendars()
-    {
-        isLoading = true;
-        try
-        {
-            calendars = await CalendarRepository.Query.ToListAsync();
-        }
-        finally
-        {
-            isLoading = false;
-        }
-    }
-
-    private void ShowAddCalendarForm()
-    {
-        // TODO: Navigate to add calendar page or show modal
-    }
-
-    private async Task ToggleCalendar(Calendar calendar)
-    {
-        if (calendar.IsEnabled)
-        {
-            calendar.Disable();
-        }
-        else
-        {
-            calendar.Enable();
-        }
-        
-        await CalendarRepository.UpdateAsync(calendar);
-        await LoadCalendars();
-    }
-
-    private void EditCalendar(Calendar calendar)
-    {
-        // TODO: Navigate to edit calendar page or show modal
-    }
-}

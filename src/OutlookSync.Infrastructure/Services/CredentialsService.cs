@@ -10,18 +10,10 @@ namespace OutlookSync.Infrastructure.Services;
 /// <summary>
 /// Infrastructure service for managing credential initialization and authentication
 /// </summary>
-public class CredentialsService : ICredentialsService
+public class CredentialsService(ILogger<CredentialsService> logger) : ICredentialsService
 {
-    private readonly ILogger<CredentialsService> _logger;
-    
     // Stores pending authentication sessions
     private readonly ConcurrentDictionary<Guid, PendingAuthSession> _pendingSessions = new();
-
-    public CredentialsService(ILogger<CredentialsService> logger)
-    {
-        ArgumentNullException.ThrowIfNull(logger, nameof(logger));
-        _logger = logger;
-    }
 
     /// <inheritdoc/>
     public async Task<DeviceCodeInitiationResult> InitializeCredentialAsync(
@@ -33,7 +25,7 @@ public class CredentialsService : ICredentialsService
         // Cleanup expired sessions to prevent memory leaks
         CleanupExpiredSessions();
 
-        _logger.LogInformation("Initiating device code flow for credential: {FriendlyName}", friendlyName);
+        logger.LogInformation("Initiating device code flow for credential: {FriendlyName}", friendlyName);
 
         try
         {
@@ -57,7 +49,7 @@ public class CredentialsService : ICredentialsService
                 MsalHelper.EwsScopes,
                 result =>
                 {
-                    _logger.LogInformation(
+                    logger.LogInformation(
                         "Device code generated. User code: {UserCode}, Verification URL: {VerificationUrl}",
                         result.UserCode,
                         result.VerificationUrl);
@@ -88,7 +80,7 @@ public class CredentialsService : ICredentialsService
 
             _pendingSessions[sessionId] = session;
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Device code flow initiated successfully. Session ID: {SessionId}",
                 sessionId);
 
@@ -101,17 +93,17 @@ public class CredentialsService : ICredentialsService
         }
         catch (MsalException ex)
         {
-            _logger.LogError(ex, "MSAL authentication initiation failed for credential: {FriendlyName}", friendlyName);
+            logger.LogError(ex, "MSAL authentication initiation failed for credential: {FriendlyName}", friendlyName);
             return DeviceCodeInitiationResult.Failure($"Authentication initiation failed: {ex.Message}");
         }
         catch (OperationCanceledException)
         {
-            _logger.LogWarning("Credential initiation was cancelled for: {FriendlyName}", friendlyName);
+            logger.LogWarning("Credential initiation was cancelled for: {FriendlyName}", friendlyName);
             return DeviceCodeInitiationResult.Failure("Authentication initiation was cancelled");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unexpected error during credential initiation: {FriendlyName}", friendlyName);
+            logger.LogError(ex, "Unexpected error during credential initiation: {FriendlyName}", friendlyName);
             return DeviceCodeInitiationResult.Failure($"An unexpected error occurred: {ex.Message}");
         }
     }
@@ -124,11 +116,11 @@ public class CredentialsService : ICredentialsService
         // Cleanup expired sessions to prevent memory leaks
         CleanupExpiredSessions();
 
-        _logger.LogInformation("Attempting to complete credential for session: {SessionId}", sessionId);
+        logger.LogInformation("Attempting to complete credential for session: {SessionId}", sessionId);
 
         if (!_pendingSessions.TryGetValue(sessionId, out var session))
         {
-            _logger.LogWarning("Session not found: {SessionId}", sessionId);
+            logger.LogWarning("Session not found: {SessionId}", sessionId);
             return CredentialCompletionResult.Failure("Session not found or expired");
         }
 
@@ -137,7 +129,7 @@ public class CredentialsService : ICredentialsService
             // Check if the session has expired
             if (DateTimeOffset.UtcNow > session.ExpiresOn)
             {
-                _logger.LogWarning("Session expired: {SessionId}", sessionId);
+                logger.LogWarning("Session expired: {SessionId}", sessionId);
                 _pendingSessions.TryRemove(sessionId, out _);
                 session.CancellationTokenSource.Cancel();
                 session.CancellationTokenSource.Dispose();
@@ -147,14 +139,14 @@ public class CredentialsService : ICredentialsService
             // Check if authentication is complete
             if (!session.AuthenticationTask.IsCompleted)
             {
-                _logger.LogDebug("Authentication still pending for session: {SessionId}", sessionId);
+                logger.LogDebug("Authentication still pending for session: {SessionId}", sessionId);
                 return CredentialCompletionResult.Pending();
             }
 
             // Get the authentication result
             var authResult = await session.AuthenticationTask;
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Device code flow completed successfully. Account: {Account}",
                 authResult.Account.Username);
 
@@ -175,7 +167,7 @@ public class CredentialsService : ICredentialsService
         }
         catch (MsalException ex)
         {
-            _logger.LogError(ex, "MSAL authentication completion failed for session: {SessionId}", sessionId);
+            logger.LogError(ex, "MSAL authentication completion failed for session: {SessionId}", sessionId);
             _pendingSessions.TryRemove(sessionId, out _);
             session.CancellationTokenSource.Cancel();
             session.CancellationTokenSource.Dispose();
@@ -183,14 +175,14 @@ public class CredentialsService : ICredentialsService
         }
         catch (OperationCanceledException)
         {
-            _logger.LogWarning("Credential completion was cancelled for session: {SessionId}", sessionId);
+            logger.LogWarning("Credential completion was cancelled for session: {SessionId}", sessionId);
             _pendingSessions.TryRemove(sessionId, out _);
             session.CancellationTokenSource.Dispose();
             return CredentialCompletionResult.Failure("Authentication was cancelled");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unexpected error during credential completion for session: {SessionId}", sessionId);
+            logger.LogError(ex, "Unexpected error during credential completion for session: {SessionId}", sessionId);
             _pendingSessions.TryRemove(sessionId, out _);
             session.CancellationTokenSource.Cancel();
             session.CancellationTokenSource.Dispose();
@@ -217,7 +209,7 @@ public class CredentialsService : ICredentialsService
                 session.CancellationTokenSource.Cancel();
                 session.CancellationTokenSource.Dispose();
                 
-                _logger.LogDebug(
+                logger.LogDebug(
                     "Cleaned up expired session: {SessionId} (expired at {ExpiresOn})",
                     sessionId,
                     session.ExpiresOn);
@@ -226,7 +218,7 @@ public class CredentialsService : ICredentialsService
 
         if (expiredSessions.Count > 0)
         {
-            _logger.LogInformation("Cleaned up {Count} expired authentication sessions", expiredSessions.Count);
+            logger.LogInformation("Cleaned up {Count} expired authentication sessions", expiredSessions.Count);
         }
     }
 
