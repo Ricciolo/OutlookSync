@@ -263,3 +263,6 @@ package-lock.json
 
 # Tailwind CSS build artifacts
 **/wwwroot/css/app.css
+
+# Bootstrap (not needed with Tailwind)
+**/wwwroot/lib/

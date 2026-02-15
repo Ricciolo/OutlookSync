@@ -32,6 +32,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         
+        // Specific repositories
+        services.AddScoped<Domain.Repositories.ICalendarRepository, CalendarRepository>();
+        services.AddScoped<Domain.Repositories.ICredentialRepository, CredentialRepository>();
+        
         // Calendar Event Repository Factory
         services.AddSingleton<ICalendarEventRepositoryFactory, CalendarEventRepositoryFactory>();
 

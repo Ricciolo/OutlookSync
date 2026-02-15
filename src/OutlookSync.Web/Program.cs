@@ -1,6 +1,7 @@
 using OutlookSync.Infrastructure.Persistence;
 using OutlookSync.Web.Components;
 using OutlookSync.Web.Extensions;
+using OutlookSync.Web.Hubs;
 using Serilog;
 
 // Configure Serilog
@@ -63,6 +64,9 @@ try
 
     app.MapStaticAssets();
     app.MapRazorComponents<App>();
+
+    // Map SignalR hub for real-time updates
+    app.MapHub<SyncStatusHub>("/syncstatushub");
 
     Log.Information("OutlookSync Web application started successfully");
     app.Run();
