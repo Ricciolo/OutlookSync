@@ -9,86 +9,51 @@ namespace OutlookSync.Domain.Aggregates;
 public class Credential : Entity, IAggregateRoot
 {
     /// <summary>
-    /// Gets the name of the credential.
-    /// </summary>
-    public required string Name { get; init; }
-    
-    /// <summary>
     /// Gets the current status of the token.
     /// </summary>
     public TokenStatus TokenStatus { get; private set; }
     
     /// <summary>
-    /// Gets the access token.
+    /// Gets the serialized status data.
     /// </summary>
-    public string? AccessToken { get; private set; }
-    
+    public byte[]? StatusData { get; private set; }
+        
     /// <summary>
-    /// Gets the refresh token.
+    /// Updates the credential status data.
     /// </summary>
-    public string? RefreshToken { get; private set; }
-    
-    /// <summary>
-    /// Gets the date and time when the token was acquired.
-    /// </summary>
-    public DateTime? TokenAcquiredAt { get; private set; }
-    
-    /// <summary>
-    /// Gets the date and time when the token expires.
-    /// </summary>
-    public DateTime? TokenExpiresAt { get; private set; }
-    
-    /// <summary>
-    /// Acquires a new token with the specified access token, refresh token, and expiration date.
-    /// </summary>
-    /// <param name="accessToken">The access token.</param>
-    /// <param name="refreshToken">The refresh token.</param>
-    /// <param name="expiresAt">The expiration date and time.</param>
-    /// <exception cref="ArgumentException">Thrown when access token or refresh token is null or whitespace, or when expiry date is not in the future.</exception>
-    public void AcquireToken(string accessToken, string refreshToken, DateTime expiresAt)
+    /// <param name="statusData">The serialized status data.</param>
+    /// <exception cref="ArgumentNullException">Thrown when status data is null.</exception>
+    public void UpdateStatusData(byte[] statusData)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(accessToken, nameof(accessToken));
-        ArgumentException.ThrowIfNullOrWhiteSpace(refreshToken, nameof(refreshToken));
+        ArgumentNullException.ThrowIfNull(statusData, nameof(statusData));
         
-        if (expiresAt <= DateTime.UtcNow)
-        {
-            throw new ArgumentException("Token expiry must be in the future", nameof(expiresAt));
-        }
-        
-        AccessToken = accessToken;
-        RefreshToken = refreshToken;
-        TokenAcquiredAt = DateTime.UtcNow;
-        TokenExpiresAt = expiresAt;
+        StatusData = statusData;
         TokenStatus = TokenStatus.Valid;
         
         MarkAsUpdated();
     }
     
+    /// <summary>
+    /// Marks the token as invalid.
+    /// </summary>
     public void MarkTokenAsInvalid()
     {
         TokenStatus = TokenStatus.Invalid;
         MarkAsUpdated();
     }
     
+    /// <summary>
+    /// Marks the token as expired.
+    /// </summary>
     public void MarkTokenAsExpired()
     {
         TokenStatus = TokenStatus.Expired;
         MarkAsUpdated();
     }
     
-    public bool IsTokenValid()
-    {
-        if (TokenStatus != TokenStatus.Valid)
-        {
-            return false;
-        }
-            
-        if (TokenExpiresAt.HasValue && TokenExpiresAt.Value <= DateTime.UtcNow)
-        {
-            MarkTokenAsExpired();
-            return false;
-        }
-        
-        return true;
-    }
+    /// <summary>
+    /// Checks if the token is currently valid.
+    /// </summary>
+    /// <returns>True if the token status is Valid; otherwise, false.</returns>
+    public bool IsTokenValid() => TokenStatus == TokenStatus.Valid;
 }

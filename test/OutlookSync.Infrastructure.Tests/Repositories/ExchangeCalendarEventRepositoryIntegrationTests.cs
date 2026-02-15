@@ -4,36 +4,32 @@ using OutlookSync.Domain.ValueObjects;
 using OutlookSync.Infrastructure.Repositories;
 using Task = System.Threading.Tasks.Task;
 using DomainCalendarEvent = OutlookSync.Domain.ValueObjects.CalendarEvent;
+using ExtensionsLogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace OutlookSync.Infrastructure.Tests.Repositories;
 
-/// <summary>
-/// Integration tests for ExchangeCalendarEventRepository.
-/// NOTE: These tests require an actual connection to Exchange Online.
-/// </summary>
-public class ExchangeCalendarEventRepositoryIntegrationTests
-{
-    // TODO: Replace with a valid access token obtained from Azure AD
-    // To obtain an access token:
-    // 1. Register an application in Azure AD
-    // 2. Configure API permissions for Microsoft Graph or EWS
-    // 3. Obtain a token using OAuth 2.0
-    // 4. Replace the empty string with the obtained token
-    private static readonly string s_accessToken = Environment.GetEnvironmentVariable("ACCESS_TOKEN") ?? string.Empty;
-    private static readonly string s_calendarExternalId = Environment.GetEnvironmentVariable("CALENDAR_ID") ?? string.Empty;
-
-    private const string CalendarName = "Test Calendar";
-
-    private readonly ILogger<ExchangeCalendarEventRepository> _logger;
-
-    public ExchangeCalendarEventRepositoryIntegrationTests()
+    /// <summary>
+    /// Integration tests for ExchangeCalendarEventRepository.
+    /// NOTE: These tests require an actual connection to Exchange Online and cached MSAL tokens.
+    /// </summary>
+    public class ExchangeCalendarEventRepositoryIntegrationTests
     {
-        var loggerFactory = LoggerFactory.Create(builder =>
+        // NOTE: These tests require actual cached MSAL tokens from previous interactive authentication
+        // The token cache should be stored in Credential.StatusData
+        private static readonly string s_calendarExternalId = Environment.GetEnvironmentVariable("CALENDAR_ID") ?? string.Empty;
+
+        private const string CalendarName = "Test Calendar";
+
+        private readonly ILogger<ExchangeCalendarEventRepository> _logger;
+
+        public ExchangeCalendarEventRepositoryIntegrationTests()
         {
-            builder.SetMinimumLevel(LogLevel.Debug);
-        });
-        _logger = loggerFactory.CreateLogger<ExchangeCalendarEventRepository>();
-    }
+            var loggerFactory = LoggerFactory.Create(builder =>
+            {
+                builder.SetMinimumLevel(ExtensionsLogLevel.Debug);
+            });
+            _logger = loggerFactory.CreateLogger<ExchangeCalendarEventRepository>();
+        }
 
     private static Calendar CreateTestCalendar()
     {
@@ -54,18 +50,85 @@ public class ExchangeCalendarEventRepositoryIntegrationTests
 
     private static Credential CreateTestCredential()
     {
-        var credential = new Credential
-        {
-            Name = "Test Credential"
-        };
+        var credential = new Credential();
 
-        // Simula l'acquisizione del token
-        credential.AcquireToken(
-            s_accessToken,
-            "dummy-refresh-token",
-            DateTime.UtcNow.AddHours(1));
+        // NOTE: In real scenarios, StatusData should contain a valid MSAL token cache
+        // For testing, you need to authenticate interactively first and save the token cache
+        var cachedTokenData = Environment.GetEnvironmentVariable("MSAL_TOKEN_CACHE");
+        if (!string.IsNullOrEmpty(cachedTokenData))
+        {
+            var tokenBytes = Convert.FromBase64String(cachedTokenData);
+            credential.UpdateStatusData(tokenBytes);
+        }
 
         return credential;
+    }
+
+    private static Credential CreateCredentialWithoutCache()
+    {
+        return new Credential(); // No StatusData - should fail initialization
+    }
+
+    [Fact]
+    public async Task InitAsync_ShouldSucceed_WhenValidTokenCacheExists()
+    {
+        // Arrange
+        ValidateConfiguration();
+
+        var calendar = CreateTestCalendar();
+        var credential = CreateTestCredential();
+
+        var repository = new ExchangeCalendarEventRepository(
+            calendar,
+            credential,
+            _logger);
+
+        // Act
+        await repository.InitAsync();
+
+        // Assert - no exception means success
+        // Verify we can use the repository
+        var events = await repository.GetAllAsync();
+        Assert.NotNull(events);
+    }
+
+    [Fact]
+    public async Task InitAsync_ShouldThrow_WhenNoCachedAccountsExist()
+    {
+        // Arrange
+        var calendar = CreateTestCalendar();
+        var credential = CreateCredentialWithoutCache();
+
+        var repository = new ExchangeCalendarEventRepository(
+            calendar,
+            credential,
+            _logger);
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await repository.InitAsync());
+
+        Assert.Contains("No cached authentication found", exception.Message);
+        Assert.Equal(TokenStatus.Invalid, credential.TokenStatus);
+    }
+
+    [Fact]
+    public async Task GetAllAsync_ShouldThrow_WhenNotInitialized()
+    {
+        // Arrange
+        var calendar = CreateTestCalendar();
+        var credential = CreateTestCredential();
+
+        var repository = new ExchangeCalendarEventRepository(
+            calendar,
+            credential,
+            _logger);
+
+        // Act & Assert - calling GetAllAsync without InitAsync should throw
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await repository.GetAllAsync());
+
+        Assert.Contains("has not been initialized", exception.Message);
     }
 
     [Fact]
@@ -83,11 +146,11 @@ public class ExchangeCalendarEventRepositoryIntegrationTests
             _logger);
 
         // Act
+        await repository.InitAsync();
         var events = await repository.GetAllAsync();
 
         // Assert
         Assert.NotNull(events);
-        // Il test non fallisce se non ci sono eventi nel calendario
         Assert.IsAssignableFrom<IReadOnlyList<DomainCalendarEvent>>(events);
     }
 
@@ -104,6 +167,8 @@ public class ExchangeCalendarEventRepositoryIntegrationTests
             calendar,
             credential,
             _logger);
+
+        await repository.InitAsync();
 
         var calendarEvent = new DomainCalendarEvent
         {
@@ -144,6 +209,8 @@ public class ExchangeCalendarEventRepositoryIntegrationTests
             calendar,
             credential,
             _logger);
+
+        await repository.InitAsync();
 
         var originalEventId = "original-event-12345";
         var sourceCalendarId = Guid.CreateVersion7();
@@ -187,6 +254,8 @@ public class ExchangeCalendarEventRepositoryIntegrationTests
             calendar,
             credential,
             _logger);
+
+        await repository.InitAsync();
 
         var sourceCalendarId = Guid.CreateVersion7();
         var originalEventId = $"test-original-{Guid.CreateVersion7()}";
@@ -268,6 +337,8 @@ public class ExchangeCalendarEventRepositoryIntegrationTests
             _logger,
             retryPolicy);
 
+        await repository.InitAsync();
+
         // Act & Assert
         // Questo test verifica che il repository sia configurato correttamente con retry policy
         var events = await repository.GetAllAsync();
@@ -303,22 +374,21 @@ public class ExchangeCalendarEventRepositoryIntegrationTests
     }
 
     [Fact]
-    public void Constructor_ShouldThrowArgumentException_WhenCredentialTokenIsInvalid()
+    public void Constructor_ShouldNotThrow_WhenCredentialTokenIsInvalid()
     {
         // Arrange
         var calendar = CreateTestCalendar();
-        var credential = new Credential
-        {
-            Name = "Invalid Credential"
-        };
-        // Non acquisisco il token, quindi TokenStatus sarà NotAcquired
+        var credential = new Credential();
+        // No status data set, TokenStatus will be NotAcquired
 
-        // Act & Assert
-        Assert.Throws<ArgumentException>(() =>
+        // Act & Assert - Constructor should not throw, validation happens in factory
+        var exception = Record.Exception(() =>
             new ExchangeCalendarEventRepository(
                 calendar,
                 credential,
                 _logger));
+        
+        Assert.Null(exception);
     }
 
     [Fact]
@@ -338,16 +408,17 @@ public class ExchangeCalendarEventRepositoryIntegrationTests
 
     private static void ValidateConfiguration()
     {
-        if (string.IsNullOrWhiteSpace(s_accessToken))
-        {
-            throw new InvalidOperationException(
-                "Access token not configured. Please set the ACCESS_TOKEN environment variable with a valid token.");
-        }
-
         if (string.IsNullOrWhiteSpace(s_calendarExternalId))
         {
             throw new InvalidOperationException(
                 "Calendar External ID not configured. Please set the CALENDAR_ID environment variable with a valid ID.");
+        }
+
+        var cachedTokenData = Environment.GetEnvironmentVariable("MSAL_TOKEN_CACHE");
+        if (string.IsNullOrEmpty(cachedTokenData))
+        {
+            throw new InvalidOperationException(
+                "MSAL token cache not configured. Please set the MSAL_TOKEN_CACHE environment variable with a Base64-encoded token cache.");
         }
     }
 }

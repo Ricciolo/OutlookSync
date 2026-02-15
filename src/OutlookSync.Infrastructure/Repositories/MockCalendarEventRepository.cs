@@ -18,6 +18,12 @@ public class MockCalendarEventRepository : ICalendarEventRepository
         _calendarId = calendarId;
     }
 
+    public Task InitAsync(CancellationToken cancellationToken = default)
+    {
+        // No initialization needed for mock repository
+        return Task.CompletedTask;
+    }
+
     public Task<IReadOnlyList<CalendarEvent>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         var events = _events.Values

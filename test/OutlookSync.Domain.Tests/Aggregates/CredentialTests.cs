@@ -1,58 +1,43 @@
 ﻿using OutlookSync.Domain.Aggregates;
 using OutlookSync.Domain.ValueObjects;
+using System.Text;
 
 namespace OutlookSync.Domain.Tests.Aggregates;
 
 public class CredentialTests
 {
     [Fact]
-    public void AcquireToken_WithValidParameters_ShouldSetToken()
+    public void UpdateStatusData_WithValidData_ShouldSetStatusData()
     {
         // Arrange
-        var credential = new Credential
-        {
-            Name = "Test Credential"
-        };
-        var accessToken = "test_access_token_123";
-        var refreshToken = "test_refresh_token_456";
-        var expiresAt = DateTime.UtcNow.AddHours(1);
+        var credential = new Credential();
+        var statusData = Encoding.UTF8.GetBytes("test_status_data");
 
         // Act
-        credential.AcquireToken(accessToken, refreshToken, expiresAt);
+        credential.UpdateStatusData(statusData);
 
         // Assert
         Assert.Equal(TokenStatus.Valid, credential.TokenStatus);
-        Assert.Equal(accessToken, credential.AccessToken);
-        Assert.Equal(refreshToken, credential.RefreshToken);
-        Assert.NotNull(credential.TokenAcquiredAt);
-        Assert.Equal(expiresAt, credential.TokenExpiresAt);
+        Assert.NotNull(credential.StatusData);
+        Assert.Equal(statusData, credential.StatusData);
     }
 
     [Fact]
-    public void AcquireToken_WithExpiredDate_ShouldThrowException()
+    public void UpdateStatusData_WithNullData_ShouldThrowException()
     {
         // Arrange
-        var credential = new Credential
-        {
-            Name = "Test Credential"
-        };
-        var accessToken = "test_access_token_123";
-        var refreshToken = "test_refresh_token_456";
-        var expiresAt = DateTime.UtcNow.AddHours(-1);
+        var credential = new Credential();
 
         // Act & Assert
-        Assert.Throws<ArgumentException>(() => credential.AcquireToken(accessToken, refreshToken, expiresAt));
+        Assert.Throws<ArgumentNullException>(() => credential.UpdateStatusData(null!));
     }
 
     [Fact]
     public void MarkTokenAsInvalid_ShouldUpdateStatus()
     {
         // Arrange
-        var credential = new Credential
-        {
-            Name = "Test Credential"
-        };
-        credential.AcquireToken("test_access", "test_refresh", DateTime.UtcNow.AddHours(1));
+        var credential = new Credential();
+        credential.UpdateStatusData(Encoding.UTF8.GetBytes("test_data"));
 
         // Act
         credential.MarkTokenAsInvalid();
@@ -62,14 +47,25 @@ public class CredentialTests
     }
 
     [Fact]
+    public void MarkTokenAsExpired_ShouldUpdateStatus()
+    {
+        // Arrange
+        var credential = new Credential();
+        credential.UpdateStatusData(Encoding.UTF8.GetBytes("test_data"));
+
+        // Act
+        credential.MarkTokenAsExpired();
+
+        // Assert
+        Assert.Equal(TokenStatus.Expired, credential.TokenStatus);
+    }
+
+    [Fact]
     public void IsTokenValid_WithValidToken_ShouldReturnTrue()
     {
         // Arrange
-        var credential = new Credential
-        {
-            Name = "Test Credential"
-        };
-        credential.AcquireToken("test_access", "test_refresh", DateTime.UtcNow.AddHours(1));
+        var credential = new Credential();
+        credential.UpdateStatusData(Encoding.UTF8.GetBytes("test_data"));
 
         // Act
         var isValid = credential.IsTokenValid();
@@ -79,21 +75,32 @@ public class CredentialTests
     }
 
     [Fact]
-    public void IsTokenValid_WithExpiredToken_ShouldReturnFalseAndMarkAsExpired()
+    public void IsTokenValid_WithInvalidToken_ShouldReturnFalse()
     {
         // Arrange
-        var credential = new Credential
-        {
-            Name = "Test Credential"
-        };
-        credential.AcquireToken("test_access", "test_refresh", DateTime.UtcNow.AddMilliseconds(1));
-        Thread.Sleep(10); // Wait for token to expire
+        var credential = new Credential();
+        credential.UpdateStatusData(Encoding.UTF8.GetBytes("test_data"));
+        credential.MarkTokenAsInvalid();
 
         // Act
         var isValid = credential.IsTokenValid();
 
         // Assert
         Assert.False(isValid);
-        Assert.Equal(TokenStatus.Expired, credential.TokenStatus);
+    }
+
+    [Fact]
+    public void IsTokenValid_WithExpiredToken_ShouldReturnFalse()
+    {
+        // Arrange
+        var credential = new Credential();
+        credential.UpdateStatusData(Encoding.UTF8.GetBytes("test_data"));
+        credential.MarkTokenAsExpired();
+
+        // Act
+        var isValid = credential.IsTokenValid();
+
+        // Assert
+        Assert.False(isValid);
     }
 }

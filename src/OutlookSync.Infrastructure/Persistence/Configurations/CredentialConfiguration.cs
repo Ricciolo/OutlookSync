@@ -12,19 +12,11 @@ public class CredentialConfiguration : IEntityTypeConfiguration<Credential>
         
         builder.HasKey(c => c.Id);
         
-        builder.Property(c => c.Name).HasMaxLength(200).IsRequired();
-        
         builder.Property(c => c.TokenStatus)
             .HasConversion<int>()
             .IsRequired();
         
-        builder.Property(c => c.AccessToken).HasMaxLength(2000);
-        
-        builder.Property(c => c.RefreshToken).HasMaxLength(2000);
-        
-        builder.Property(c => c.TokenAcquiredAt);
-        
-        builder.Property(c => c.TokenExpiresAt);
+        builder.Property(c => c.StatusData);
         
         builder.Property(c => c.CreatedAt).IsRequired();
         

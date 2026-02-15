@@ -91,9 +91,9 @@ public class CalendarsSyncService(
             return SyncResult.Failure($"Credential not found for calendar {sourceCalendar.Name}");
         }
 
-        if (!credential.IsTokenValid() || string.IsNullOrEmpty(credential.AccessToken))
+        if (!credential.IsTokenValid() || credential.StatusData == null || credential.StatusData.Length == 0)
         {
-            return SyncResult.Failure($"Invalid or missing access token for calendar {sourceCalendar.Name}");
+            return SyncResult.Failure($"Invalid token or missing status data for calendar {sourceCalendar.Name}");
         }
 
         try
@@ -109,6 +109,9 @@ public class CalendarsSyncService(
             // Create repository for this calendar with its credentials
             // The factory will validate the credential and token
             var sourceRepository = _calendarEventRepositoryFactory.Create(sourceCalendar, credential);
+            
+            // Initialize repository to verify connectivity and access
+            await sourceRepository.InitAsync(cancellationToken);
 
             // Fetch events from local repository
             var sourceEvents = await sourceRepository.GetAllAsync(cancellationToken);
@@ -136,6 +139,9 @@ public class CalendarsSyncService(
 
                     // The factory will validate the credential and token
                     var targetRepository = _calendarEventRepositoryFactory.Create(targetCalendar, targetCredential);
+                    
+                    // Initialize repository to verify connectivity and access
+                    await targetRepository.InitAsync(cancellationToken);
 
                     totalEventsCopied += await CopyEventsToCalendarAsync(
                         originalEvents,
@@ -247,7 +253,6 @@ public class CalendarsSyncService(
             Organizer = fieldSelection.Organizer ? sourceEvent.Organizer : null,
             IsAllDay = fieldSelection.IsAllDay && sourceEvent.IsAllDay,
             IsRecurring = fieldSelection.Recurrence && sourceEvent.IsRecurring,
-            IsCopiedEvent = true,
             OriginalEventId = sourceEvent.ExternalId,
             SourceCalendarId = sourceCalendar.Id
         };

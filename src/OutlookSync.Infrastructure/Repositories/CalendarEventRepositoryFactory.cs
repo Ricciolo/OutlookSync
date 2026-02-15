@@ -24,16 +24,18 @@ public class CalendarEventRepositoryFactory(
             throw new InvalidOperationException($"Token is invalid or expired for calendar '{calendar.Name}'");
         }
 
-        if (string.IsNullOrEmpty(credential.AccessToken))
+        if (credential.StatusData == null || credential.StatusData.Length == 0)
         {
-            throw new InvalidOperationException($"Access token is missing for calendar '{calendar.Name}'");
+            throw new InvalidOperationException($"Status data is missing for calendar '{calendar.Name}'");
         }
 
         // Create Exchange calendar event repository
-        return new ExchangeCalendarEventRepository(
+        var repository = new ExchangeCalendarEventRepository(
             calendar,
             credential,
             logger,
             RetryPolicy.CreateDefault());
+
+        return repository;
     }
 }

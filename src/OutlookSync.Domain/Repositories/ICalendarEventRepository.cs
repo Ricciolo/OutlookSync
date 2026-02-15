@@ -9,6 +9,12 @@ namespace OutlookSync.Domain.Repositories;
 public interface ICalendarEventRepository
 {
     /// <summary>
+    /// Initializes the repository and performs any necessary setup operations
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token</param>
+    Task InitAsync(CancellationToken cancellationToken = default);
+    
+    /// <summary>
     /// Gets all events for the calendar this repository was created for
     /// </summary>
     Task<IReadOnlyList<CalendarEvent>> GetAllAsync(CancellationToken cancellationToken = default);
