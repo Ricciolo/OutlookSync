@@ -13,11 +13,13 @@ public class CalendarsSyncService(
     ICalendarRepository calendarRepository,
     ICredentialRepository credentialRepository,
     ICalendarEventRepositoryFactory calendarEventRepositoryFactory,
+    IUnitOfWork unitOfWork,
     ILogger<CalendarsSyncService> logger) : ICalendarsSyncService
 {
     private readonly ICalendarRepository _calendarRepository = calendarRepository;
     private readonly ICredentialRepository _credentialRepository = credentialRepository;
     private readonly ICalendarEventRepositoryFactory _calendarEventRepositoryFactory = calendarEventRepositoryFactory;
+    private readonly IUnitOfWork _unitOfWork = unitOfWork;
     private readonly ILogger<CalendarsSyncService> _logger = logger;
 
     private const string CopiedEventMarker = "[SYNCED]";
@@ -71,6 +73,18 @@ public class CalendarsSyncService(
             }
         }
 
+        // Save all changes at once
+        try
+        {
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            _logger.LogInformation("All changes saved successfully");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save changes after sync");
+            throw;
+        }
+
         _logger.LogInformation(
             "Synchronization completed. Total: {Total}, Successful: {Successful}, Failed: {Failed}, Events copied: {EventsCopied}",
             calendars.Count, successful, failed, totalEventsCopied);
@@ -91,9 +105,9 @@ public class CalendarsSyncService(
             return SyncResult.Failure($"Credential not found for calendar {sourceCalendar.Name}");
         }
 
-        if (!credential.IsTokenValid() || string.IsNullOrEmpty(credential.AccessToken))
+        if (!credential.IsTokenValid() || credential.StatusData == null || credential.StatusData.Length == 0)
         {
-            return SyncResult.Failure($"Invalid or missing access token for calendar {sourceCalendar.Name}");
+            return SyncResult.Failure($"Invalid token or missing status data for calendar {sourceCalendar.Name}");
         }
 
         try
@@ -109,6 +123,9 @@ public class CalendarsSyncService(
             // Create repository for this calendar with its credentials
             // The factory will validate the credential and token
             var sourceRepository = _calendarEventRepositoryFactory.Create(sourceCalendar, credential);
+            
+            // Initialize repository to verify connectivity and access
+            await sourceRepository.InitAsync(cancellationToken);
 
             // Fetch events from local repository
             var sourceEvents = await sourceRepository.GetAllAsync(cancellationToken);
@@ -136,6 +153,9 @@ public class CalendarsSyncService(
 
                     // The factory will validate the credential and token
                     var targetRepository = _calendarEventRepositoryFactory.Create(targetCalendar, targetCredential);
+                    
+                    // Initialize repository to verify connectivity and access
+                    await targetRepository.InitAsync(cancellationToken);
 
                     totalEventsCopied += await CopyEventsToCalendarAsync(
                         originalEvents,
@@ -165,6 +185,19 @@ public class CalendarsSyncService(
             sourceCalendar.RecordFailedSync(ex.Message);
             await _calendarRepository.UpdateAsync(sourceCalendar, cancellationToken);
             return SyncResult.Failure(ex.Message);
+        }
+        finally
+        {
+            // Always update source credential as token cache may have been updated during sync
+            try
+            {
+                await _credentialRepository.UpdateAsync(credential, cancellationToken);
+                _logger.LogDebug("Credential updated for calendar {CalendarName}", sourceCalendar.Name);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to update credential for calendar {CalendarId}", sourceCalendar.Id);
+            }
         }
     }
 
@@ -247,7 +280,6 @@ public class CalendarsSyncService(
             Organizer = fieldSelection.Organizer ? sourceEvent.Organizer : null,
             IsAllDay = fieldSelection.IsAllDay && sourceEvent.IsAllDay,
             IsRecurring = fieldSelection.Recurrence && sourceEvent.IsRecurring,
-            IsCopiedEvent = true,
             OriginalEventId = sourceEvent.ExternalId,
             SourceCalendarId = sourceCalendar.Id
         };

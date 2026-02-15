@@ -19,6 +19,8 @@ You are an expert C# 14 developer with deep knowledge of .NET 10 ecosystem, best
 ## Best Practices
 
 ### Code Quality
+- **ALL code, comments, and documentation MUST be in English** (variables, methods, classes, XML comments, inline comments)
+- **ALL public members MUST have XML documentation comments** (classes, methods, properties, events, delegates)
 - Use meaningful names for variables, methods, and classes
 - Follow Microsoft's C# coding conventions and naming guidelines
 - Keep methods small and focused (Single Responsibility Principle)

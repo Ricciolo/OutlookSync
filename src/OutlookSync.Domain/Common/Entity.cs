@@ -10,7 +10,17 @@ public abstract class Entity
     public DateTime CreatedAt { get; protected init; } = DateTime.UtcNow;
     
     public DateTime? UpdatedAt { get; protected set; }
-    
+
+    protected Entity()
+    {
+        
+    }
+
+    protected Entity(Guid id)
+    {
+        Id = id;
+    }
+
     protected void MarkAsUpdated()
     {
         UpdatedAt = DateTime.UtcNow;
@@ -30,8 +40,18 @@ public abstract class Entity
         return Id == other.Id;
     }
     
+    /// <summary>
+    /// Serves as the default hash function.
+    /// </summary>
+    /// <returns>A hash code for the current entity.</returns>
     public override int GetHashCode() => Id.GetHashCode();
     
+    /// <summary>
+    /// Determines whether two entity instances are equal.
+    /// </summary>
+    /// <param name="left">The first entity to compare.</param>
+    /// <param name="right">The second entity to compare.</param>
+    /// <returns>True if the entities are equal; otherwise, false.</returns>
     public static bool operator ==(Entity? left, Entity? right)
     {
         if (left is null && right is null)

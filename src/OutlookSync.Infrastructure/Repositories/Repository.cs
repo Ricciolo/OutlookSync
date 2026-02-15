@@ -36,8 +36,4 @@ public class Repository<T>(OutlookSyncDbContext context) : IRepository<T> where 
         _context.Set<T>().Remove(entity);
         return Task.CompletedTask;
     }
-
-    /// <inheritdoc />
-    public virtual async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>
-        await _context.SaveChangesAsync(cancellationToken);
 }

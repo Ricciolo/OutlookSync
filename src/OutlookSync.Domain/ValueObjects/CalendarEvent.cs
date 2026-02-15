@@ -1,6 +1,15 @@
 ﻿namespace OutlookSync.Domain.ValueObjects;
 
 /// <summary>
+/// Body type for calendar events
+/// </summary>
+public enum CalendarEventBodyType
+{
+    Text,
+    Html
+}
+
+/// <summary>
 /// Calendar event value object - represents an event within a calendar
 /// </summary>
 public record CalendarEvent
@@ -8,9 +17,9 @@ public record CalendarEvent
     public required Guid Id { get; init; }
     
     public required Guid CalendarId { get; init; }
-    
-    public required string ExternalId { get; init; }
-    
+
+    public string ExternalId { get; set; } = string.Empty;
+
     public required string Subject { get; init; }
     
     public DateTime Start { get; init; }
@@ -21,16 +30,21 @@ public record CalendarEvent
     
     public string? Body { get; init; }
     
+    /// <summary>
+    /// Type of the body content (Text or Html)
+    /// </summary>
+    public CalendarEventBodyType BodyType { get; init; } = CalendarEventBodyType.Text;
+    
     public string? Organizer { get; init; }
     
     public bool IsAllDay { get; init; }
     
     public bool IsRecurring { get; init; }
-    
+
     /// <summary>
     /// Indicates if this event was copied from another calendar
     /// </summary>
-    public bool IsCopiedEvent { get; init; }
+    public bool IsCopiedEvent => !string.IsNullOrWhiteSpace(OriginalEventId);
     
     /// <summary>
     /// Original event external ID if this is a copied event
@@ -55,7 +69,6 @@ public record CalendarEvent
             Id = Guid.NewGuid(),
             CalendarId = targetCalendarId,
             ExternalId = newExternalId,
-            IsCopiedEvent = true,
             OriginalEventId = originalEventId,
             SourceCalendarId = sourceCalendarId
         };
@@ -64,7 +77,13 @@ public record CalendarEvent
     /// <summary>
     /// Creates a new event with updated details
     /// </summary>
-    public CalendarEvent WithUpdatedDetails(string subject, DateTime start, DateTime end, string? location = null, string? body = null)
+    public CalendarEvent WithUpdatedDetails(
+        string subject, 
+        DateTime start, 
+        DateTime end, 
+        string? location = null, 
+        string? body = null,
+        CalendarEventBodyType bodyType = CalendarEventBodyType.Text)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(subject, nameof(subject));
         ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(start, end, nameof(start));
@@ -75,7 +94,8 @@ public record CalendarEvent
             Start = start,
             End = end,
             Location = location,
-            Body = body
+            Body = body,
+            BodyType = bodyType
         };
     }
 }

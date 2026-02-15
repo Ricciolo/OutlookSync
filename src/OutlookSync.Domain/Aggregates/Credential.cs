@@ -8,62 +8,52 @@ namespace OutlookSync.Domain.Aggregates;
 /// </summary>
 public class Credential : Entity, IAggregateRoot
 {
-    public required string Name { get; init; }
-    
+    /// <summary>
+    /// Gets the current status of the token.
+    /// </summary>
     public TokenStatus TokenStatus { get; private set; }
     
-    public string? AccessToken { get; private set; }
-    
-    public string? RefreshToken { get; private set; }
-    
-    public DateTime? TokenAcquiredAt { get; private set; }
-    
-    public DateTime? TokenExpiresAt { get; private set; }
-    
-    public void AcquireToken(string accessToken, string refreshToken, DateTime expiresAt)
+    /// <summary>
+    /// Gets the serialized status data.
+    /// </summary>
+    public byte[]? StatusData { get; private set; }
+        
+    /// <summary>
+    /// Updates the credential status data.
+    /// </summary>
+    /// <param name="statusData">The serialized status data.</param>
+    /// <exception cref="ArgumentNullException">Thrown when status data is null.</exception>
+    public void UpdateStatusData(byte[] statusData)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(accessToken, nameof(accessToken));
-        ArgumentException.ThrowIfNullOrWhiteSpace(refreshToken, nameof(refreshToken));
+        ArgumentNullException.ThrowIfNull(statusData, nameof(statusData));
         
-        if (expiresAt <= DateTime.UtcNow)
-        {
-            throw new ArgumentException("Token expiry must be in the future", nameof(expiresAt));
-        }
-        
-        AccessToken = accessToken;
-        RefreshToken = refreshToken;
-        TokenAcquiredAt = DateTime.UtcNow;
-        TokenExpiresAt = expiresAt;
+        StatusData = statusData;
         TokenStatus = TokenStatus.Valid;
         
         MarkAsUpdated();
     }
     
+    /// <summary>
+    /// Marks the token as invalid.
+    /// </summary>
     public void MarkTokenAsInvalid()
     {
         TokenStatus = TokenStatus.Invalid;
         MarkAsUpdated();
     }
     
+    /// <summary>
+    /// Marks the token as expired.
+    /// </summary>
     public void MarkTokenAsExpired()
     {
         TokenStatus = TokenStatus.Expired;
         MarkAsUpdated();
     }
     
-    public bool IsTokenValid()
-    {
-        if (TokenStatus != TokenStatus.Valid)
-        {
-            return false;
-        }
-            
-        if (TokenExpiresAt.HasValue && TokenExpiresAt.Value <= DateTime.UtcNow)
-        {
-            MarkTokenAsExpired();
-            return false;
-        }
-        
-        return true;
-    }
+    /// <summary>
+    /// Checks if the token is currently valid.
+    /// </summary>
+    /// <returns>True if the token status is Valid; otherwise, false.</returns>
+    public bool IsTokenValid() => TokenStatus == TokenStatus.Valid;
 }
