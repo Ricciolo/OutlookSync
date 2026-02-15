@@ -2,8 +2,10 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OutlookSync.Domain.Repositories;
+using OutlookSync.Domain.Services;
 using OutlookSync.Infrastructure.Persistence;
 using OutlookSync.Infrastructure.Repositories;
+using OutlookSync.Infrastructure.Services;
 
 namespace OutlookSync.Infrastructure.Extensions;
 
@@ -38,6 +40,9 @@ public static class ServiceCollectionExtensions
         
         // Calendar Event Repository Factory
         services.AddSingleton<ICalendarEventRepositoryFactory, CalendarEventRepositoryFactory>();
+        
+        // Domain Services
+        services.AddTransient<ICredentialsService, CredentialsService>();
 
         return services;
     }

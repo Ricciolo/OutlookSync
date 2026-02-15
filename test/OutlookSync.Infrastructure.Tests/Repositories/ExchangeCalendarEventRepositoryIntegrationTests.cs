@@ -50,7 +50,7 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
 
     private static Credential CreateTestCredential()
     {
-        var credential = new Credential();
+        var credential = new Credential { FriendlyName = "Test Account" };
 
         // NOTE: In real scenarios, StatusData should contain a valid MSAL token cache
         // For testing, you need to authenticate interactively first and save the token cache
@@ -66,7 +66,7 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
 
     private static Credential CreateCredentialWithoutCache()
     {
-        return new Credential(); // No StatusData - should fail initialization
+        return new Credential { FriendlyName = "Test Account Without Cache" }; // No StatusData - should fail initialization
     }
 
     [Fact]
@@ -378,7 +378,7 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
     {
         // Arrange
         var calendar = CreateTestCalendar();
-        var credential = new Credential();
+        var credential = new Credential { FriendlyName = "Invalid Credential" };
         // No status data set, TokenStatus will be NotAcquired
 
         // Act & Assert - Constructor should not throw, validation happens in factory
@@ -387,6 +387,7 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
                 calendar,
                 credential,
                 _logger));
+        
         
         Assert.Null(exception);
     }

@@ -468,7 +468,7 @@ public class CalendarsSyncServiceTests
 
     private static Credential CreateTestCredential()
     {
-        var credential = new Credential();
+        var credential = new Credential { FriendlyName = "Test Account" };
         
         // Set valid token data
         credential.UpdateStatusData([1, 2, 3, 4]); // Non-empty byte array

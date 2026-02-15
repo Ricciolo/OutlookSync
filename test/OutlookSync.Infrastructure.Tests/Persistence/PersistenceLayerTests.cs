@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using OutlookSync.Domain.Aggregates;
 using OutlookSync.Domain.Repositories;
 using OutlookSync.Domain.ValueObjects;
@@ -36,7 +36,7 @@ public class PersistenceLayerTests : IDisposable
     public async Task AddCredential_WithStatusData_ShouldPersist()
     {
         // Arrange
-        var credential = new Credential();
+        var credential = new Credential { FriendlyName = "Test Account" };
         var statusData = "test_status_data"u8.ToArray();
         credential.UpdateStatusData(statusData);
 
@@ -56,7 +56,7 @@ public class PersistenceLayerTests : IDisposable
     public async Task UpdateCredentialStatus_ShouldPersist()
     {
         // Arrange
-        var credential = new Credential();
+        var credential = new Credential { FriendlyName = "Test Account" };
         credential.UpdateStatusData("test_data"u8.ToArray());
         await _credentialRepository.AddAsync(credential);
         await _unitOfWork.SaveChangesAsync();
@@ -80,7 +80,7 @@ public class PersistenceLayerTests : IDisposable
     public async Task AddCalendar_WithConfiguration_ShouldPersist()
     {
         // Arrange
-        var credential = new Credential();
+        var credential = new Credential { FriendlyName = "Test Account" };
         credential.UpdateStatusData("test_data"u8.ToArray());
         await _credentialRepository.AddAsync(credential);
         await _unitOfWork.SaveChangesAsync();
@@ -121,7 +121,7 @@ public class PersistenceLayerTests : IDisposable
     public async Task UpdateCalendarConfiguration_ShouldPersist()
     {
         // Arrange
-        var credential = new Credential();
+        var credential = new Credential { FriendlyName = "Test Account" };
         credential.UpdateStatusData("test_data"u8.ToArray());
         await _credentialRepository.AddAsync(credential);
 
@@ -169,7 +169,7 @@ public class PersistenceLayerTests : IDisposable
     public async Task DeleteCalendar_ShouldRemoveFromDatabase()
     {
         // Arrange
-        var credential = new Credential();
+        var credential = new Credential { FriendlyName = "Test Account" };
         credential.UpdateStatusData("test_data"u8.ToArray());
         await _credentialRepository.AddAsync(credential);
 
@@ -206,7 +206,7 @@ public class PersistenceLayerTests : IDisposable
     public async Task UnitOfWork_Transaction_ShouldCommit()
     {
         // Arrange
-        var credential = new Credential();
+        var credential = new Credential { FriendlyName = "Test Account" };
         credential.UpdateStatusData("test_data"u8.ToArray());
 
         // Act
@@ -227,7 +227,7 @@ public class PersistenceLayerTests : IDisposable
     public async Task UnitOfWork_Transaction_ShouldRollback()
     {
         // Arrange
-        var credential = new Credential();
+        var credential = new Credential { FriendlyName = "Test Account" };
         credential.UpdateStatusData("test_data"u8.ToArray());
 
         // Act
@@ -248,7 +248,7 @@ public class PersistenceLayerTests : IDisposable
     public async Task Repository_Query_ShouldReturnFilteredResults()
     {
         // Arrange
-        var credential = new Credential();
+        var credential = new Credential { FriendlyName = "Test Account" };
         credential.UpdateStatusData("test_data"u8.ToArray());
         await _credentialRepository.AddAsync(credential);
 
@@ -299,7 +299,7 @@ public class PersistenceLayerTests : IDisposable
     public async Task RecordSyncSuccess_ShouldUpdateLastSyncAt()
     {
         // Arrange
-        var credential = new Credential();
+        var credential = new Credential { FriendlyName = "Test Account" };
         credential.UpdateStatusData("test_data"u8.ToArray());
         await _credentialRepository.AddAsync(credential);
 

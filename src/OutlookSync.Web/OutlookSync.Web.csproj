@@ -20,4 +20,8 @@
     <ProjectReference Include="..\OutlookSync.Infrastructure\OutlookSync.Infrastructure.csproj" />
   </ItemGroup>
 
+  <Target Name="BuildTailwind" BeforeTargets="Build">
+    <Exec Command="npx tailwindcss -i ./Styles/app.css -o ./wwwroot/app.css" />
+  </Target>
+
 </Project>

@@ -4,6 +4,7 @@ using Microsoft.Identity.Client;
 using OutlookSync.Domain.Aggregates;
 using OutlookSync.Domain.Repositories;
 using OutlookSync.Domain.ValueObjects;
+using OutlookSync.Infrastructure.Authentication;
 using EwsExchangeService = Microsoft.Exchange.WebServices.Data.ExchangeService;
 using DomainCalendarEvent = OutlookSync.Domain.ValueObjects.CalendarEvent;
 using Task = System.Threading.Tasks.Task;
@@ -18,10 +19,6 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
     private const int DefaultPastDaysToRetrieve = 7;
     private const int DefaultFutureDaysToRetrieve = 30;
     private const string ExchangeServiceUrl = "https://outlook.office365.com/EWS/Exchange.asmx";
-    private const string OfficeClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c";
-    
-    // EWS scopes for accessing calendar
-    private static readonly string[] s_ewsScopes = ["https://outlook.office365.com/EWS.AccessAsUser.All"];
 
     // Extended properties for storing sync metadata
     private static readonly Guid PropertySetId = new("{C11FF724-AA03-4555-9952-8FA248A11C3E}");
@@ -80,32 +77,17 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
         try
         {
             // Build MSAL Public Client Application
-            var app = PublicClientApplicationBuilder
-                .Create(OfficeClientId)
-                .WithAuthority(AadAuthorityAudience.AzureAdAndPersonalMicrosoftAccount)
-                .Build();
+            var app = MsalHelper.CreatePublicClientApplication();
 
             // Configure token cache serialization
-            app.UserTokenCache.SetBeforeAccess(args =>
-            {
-                // Deserialize token cache from credential if available
-                if (_credential.StatusData != null && _credential.StatusData.Length > 0)
+            MsalHelper.ConfigureTokenCache(
+                app,
+                getStatusData: () => _credential.StatusData,
+                updateStatusData: data =>
                 {
-                    _logger.LogDebug("Deserializing existing token cache");
-                    args.TokenCache.DeserializeMsalV3(_credential.StatusData);
-                }
-            });
-
-            app.UserTokenCache.SetAfterAccess(args =>
-            {
-                // Serialize and save token cache when it changes
-                if (args.HasStateChanged)
-                {
-                    var tokenCacheData = args.TokenCache.SerializeMsalV3();
-                    _credential.UpdateStatusData(tokenCacheData);
+                    _credential.UpdateStatusData(data);
                     _logger.LogDebug("Token cache updated and saved to credential");
-                }
-            });
+                });
 
             // Try to acquire token silently
             AuthenticationResult result;
@@ -122,7 +104,7 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
             _logger.LogDebug("Attempting silent token acquisition");
             try
             {
-                result = await app.AcquireTokenSilent(s_ewsScopes, accounts.FirstOrDefault())
+                result = await app.AcquireTokenSilent(MsalHelper.EwsScopes, accounts.FirstOrDefault())
                     .ExecuteAsync(cancellationToken);
                 _logger.LogInformation("Token acquired silently");
             }
