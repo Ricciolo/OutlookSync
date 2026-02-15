@@ -1,4 +1,5 @@
-using Microsoft.EntityFrameworkCore.Storage;
+﻿using Microsoft.EntityFrameworkCore.Storage;
+using OutlookSync.Domain.Repositories;
 using OutlookSync.Infrastructure.Persistence;
 
 namespace OutlookSync.Infrastructure.Repositories;
