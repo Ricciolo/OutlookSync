@@ -266,3 +266,8 @@ package-lock.json
 
 # Bootstrap (not needed with Tailwind)
 **/wwwroot/lib/
+
+# SQLite database files
+*.db
+*.db-shm
+*.db-wal
