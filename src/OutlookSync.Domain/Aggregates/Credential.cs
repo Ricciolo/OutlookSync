@@ -8,18 +8,43 @@ namespace OutlookSync.Domain.Aggregates;
 /// </summary>
 public class Credential : Entity, IAggregateRoot
 {
+    /// <summary>
+    /// Gets the name of the credential.
+    /// </summary>
     public required string Name { get; init; }
     
+    /// <summary>
+    /// Gets the current status of the token.
+    /// </summary>
     public TokenStatus TokenStatus { get; private set; }
     
+    /// <summary>
+    /// Gets the access token.
+    /// </summary>
     public string? AccessToken { get; private set; }
     
+    /// <summary>
+    /// Gets the refresh token.
+    /// </summary>
     public string? RefreshToken { get; private set; }
     
+    /// <summary>
+    /// Gets the date and time when the token was acquired.
+    /// </summary>
     public DateTime? TokenAcquiredAt { get; private set; }
     
+    /// <summary>
+    /// Gets the date and time when the token expires.
+    /// </summary>
     public DateTime? TokenExpiresAt { get; private set; }
     
+    /// <summary>
+    /// Acquires a new token with the specified access token, refresh token, and expiration date.
+    /// </summary>
+    /// <param name="accessToken">The access token.</param>
+    /// <param name="refreshToken">The refresh token.</param>
+    /// <param name="expiresAt">The expiration date and time.</param>
+    /// <exception cref="ArgumentException">Thrown when access token or refresh token is null or whitespace, or when expiry date is not in the future.</exception>
     public void AcquireToken(string accessToken, string refreshToken, DateTime expiresAt)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(accessToken, nameof(accessToken));

@@ -9,8 +9,7 @@ namespace OutlookSync.Infrastructure.Repositories;
 /// Factory implementation for creating calendar event repositories
 /// </summary>
 public class CalendarEventRepositoryFactory(
-    ILogger<ExchangeCalendarEventRepository> logger,
-    ExchangeConfiguration exchangeConfiguration) : ICalendarEventRepositoryFactory
+    ILogger<ExchangeCalendarEventRepository> logger) : ICalendarEventRepositoryFactory
 {
     public ICalendarEventRepository Create(Calendar calendar, Credential credential)
     {
@@ -32,10 +31,8 @@ public class CalendarEventRepositoryFactory(
 
         // Create Exchange calendar event repository
         return new ExchangeCalendarEventRepository(
-            credential.AccessToken,
-            exchangeConfiguration.ServiceUrl,
-            calendar.Id,
-            calendar.ExternalId,
+            calendar,
+            credential,
             logger,
             RetryPolicy.CreateDefault());
     }

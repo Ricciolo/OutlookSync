@@ -1,4 +1,4 @@
-using Microsoft.Exchange.WebServices.Data;
+﻿using Microsoft.Exchange.WebServices.Data;
 using Microsoft.Extensions.Logging;
 using OutlookSync.Domain.Aggregates;
 using OutlookSync.Domain.Repositories;
@@ -13,48 +13,69 @@ namespace OutlookSync.Infrastructure.Repositories;
 /// </summary>
 public class ExchangeCalendarEventRepository : ICalendarEventRepository
 {
-    private const string CopiedFromMarker = "[Copied from:";
     private const int DefaultPastDaysToRetrieve = 7;
     private const int DefaultFutureDaysToRetrieve = 30;
-    
+    private const string ExchangeServiceUrl = "https://outlook.office365.com/EWS/Exchange.asmx";
+
+    // Extended properties for storing sync metadata
+    private static readonly Guid PropertySetId = new("{C11FF724-AA03-4555-9952-8FA248A11C3E}");
+    private static readonly ExtendedPropertyDefinition OriginalEventIdProperty =
+        new(PropertySetId, "OriginalEventId", MapiPropertyType.String);
+    private static readonly ExtendedPropertyDefinition SourceCalendarIdProperty =
+        new(PropertySetId, "SourceCalendarId", MapiPropertyType.String);
+
+    private static readonly PropertySet s_fullPropertySet = new(BasePropertySet.FirstClassProperties)
+                                                            {
+                                                                OriginalEventIdProperty,
+                                                                SourceCalendarIdProperty
+                                                            };
+
     private readonly EwsExchangeService _service;
-    private readonly Guid _calendarId;
+    private readonly Calendar _calendar;
     private readonly ILogger<ExchangeCalendarEventRepository> _logger;
     private readonly RetryPolicy _retryPolicy;
 
     public ExchangeCalendarEventRepository(
-        string accessToken,
-        string serviceUrl,
-        Guid calendarId,
-        string calendarExternalId,
+        Calendar calendar,
+        Credential credential,
         ILogger<ExchangeCalendarEventRepository> logger,
         RetryPolicy? retryPolicy = null)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(accessToken, nameof(accessToken));
-        ArgumentException.ThrowIfNullOrWhiteSpace(serviceUrl, nameof(serviceUrl));
-        ArgumentException.ThrowIfNullOrWhiteSpace(calendarExternalId, nameof(calendarExternalId));
+        ArgumentNullException.ThrowIfNull(calendar, nameof(calendar));
+        ArgumentNullException.ThrowIfNull(credential, nameof(credential));
         ArgumentNullException.ThrowIfNull(logger, nameof(logger));
 
-        _calendarId = calendarId;
+        if (!credential.IsTokenValid())
+        {
+            throw new ArgumentException("Credential token is invalid or expired", nameof(credential));
+        }
+
+        if (string.IsNullOrEmpty(credential.AccessToken))
+        {
+            throw new ArgumentException("Access token is missing", nameof(credential));
+        }
+
+        _calendar = calendar;
         _logger = logger;
         _retryPolicy = retryPolicy ?? RetryPolicy.CreateDefault();
 
         _service = new EwsExchangeService(ExchangeVersion.Exchange2016)
         {
-            Url = new Uri(serviceUrl),
-            Credentials = new OAuthCredentials(accessToken),
+            Url = new Uri(ExchangeServiceUrl),
+            Credentials = new OAuthCredentials(credential.AccessToken),
             Timeout = 100000 // 100 seconds
         };
 
         _logger.LogInformation(
-            "ExchangeCalendarEventRepository initialized for calendar {CalendarId}",
-            calendarId);
+            "ExchangeCalendarEventRepository initialized for calendar {CalendarId} ({CalendarName})",
+            calendar.Id,
+            calendar.Name);
     }
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<DomainCalendarEvent>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Getting all events for calendar {CalendarId}", _calendarId);
+        _logger.LogInformation("Getting all events for calendar {CalendarId}", _calendar.Id);
 
         return await ExecuteWithRetryAsync(async () =>
         {
@@ -64,19 +85,18 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
 
             var view = new CalendarView(startDate, endDate)
             {
-                PropertySet = CreatePropertySet()
+                PropertySet = new PropertySet(BasePropertySet.IdOnly)
             };
 
             var folderId = GetCalendarFolderId();
-            var appointments = await System.Threading.Tasks.Task.Run(
-                () => _service.FindAppointments(folderId, view),
-                cancellationToken);
+            var appointments = await _service.FindAppointments(folderId, view);
 
             _logger.LogInformation("Found {Count} appointments", appointments.Items.Count);
 
             var events = new List<DomainCalendarEvent>();
             foreach (var appointment in appointments)
             {
+                await appointment.Load(s_fullPropertySet, cancellationToken);
                 var calendarEvent = MapToCalendarEvent(appointment);
                 events.Add(calendarEvent);
             }
@@ -99,24 +119,46 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
             sourceCalendar.Id,
             sourceEvent.ExternalId);
 
-        // Get all events and search for the copied one
-        var allEvents = await GetAllAsync(cancellationToken);
-
-        var copiedEvent = allEvents.FirstOrDefault(e =>
-            e.IsCopiedEvent &&
-            e.OriginalEventId == sourceEvent.ExternalId &&
-            e.SourceCalendarId == sourceCalendar.Id);
-
-        if (copiedEvent != null)
+        return await ExecuteWithRetryAsync(async () =>
         {
-            _logger.LogInformation("Found copied event with ID {EventId}", copiedEvent.Id);
-        }
-        else
-        {
+            // Create filters for extended properties
+            var originalEventIdFilter = new SearchFilter.IsEqualTo(
+                OriginalEventIdProperty,
+                sourceEvent.ExternalId);
+
+            var sourceCalendarIdFilter = new SearchFilter.IsEqualTo(
+                SourceCalendarIdProperty,
+                sourceCalendar.Id.ToString());
+
+            // Combine filters with AND
+            var combinedFilter = new SearchFilter.SearchFilterCollection(
+                LogicalOperator.And,
+                originalEventIdFilter,
+                sourceCalendarIdFilter);
+
+            // Create view with extended properties
+            var view = new ItemView(1)
+            {
+                PropertySet = new PropertySet(
+                    BasePropertySet.IdOnly,
+                    OriginalEventIdProperty,
+                    SourceCalendarIdProperty)
+            };
+
+            var folderId = GetCalendarFolderId();
+            var results = await _service.FindItems(folderId, combinedFilter, view);
+
+            if (results.Items.Count > 0 && results.Items[0] is Appointment appointment)
+            {
+                await appointment.Load(s_fullPropertySet, cancellationToken);
+                var copiedEvent = MapToCalendarEvent(appointment);
+                _logger.LogInformation("Found copied event with ID {EventId}", copiedEvent.Id);
+                return copiedEvent;
+            }
+
             _logger.LogInformation("No copied event found");
-        }
-
-        return copiedEvent;
+            return null;
+        }, cancellationToken);
     }
 
     /// <inheritdoc/>
@@ -127,32 +169,37 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
         _logger.LogInformation(
             "Adding calendar event '{Subject}' to calendar {CalendarId}",
             calendarEvent.Subject,
-            _calendarId);
+            _calendar.Id);
 
         await ExecuteWithRetryAsync(async () =>
         {
             var appointment = new Appointment(_service)
             {
                 Subject = calendarEvent.Subject,
-                Body = new MessageBody(BodyType.Text, calendarEvent.Body ?? string.Empty),
+                Body = new MessageBody(
+                    calendarEvent.BodyType == CalendarEventBodyType.Html ? BodyType.HTML : BodyType.Text,
+                    calendarEvent.Body ?? string.Empty),
                 Start = calendarEvent.Start,
                 End = calendarEvent.End,
                 Location = calendarEvent.Location ?? string.Empty,
                 IsAllDayEvent = calendarEvent.IsAllDay
             };
 
-            // Store metadata about copied events in the body
-            // Note: Extended properties would be better but require additional setup
+            // Store metadata about copied events using extended properties
             if (calendarEvent.IsCopiedEvent && calendarEvent.OriginalEventId != null)
             {
-                var metadata = $"\n\n{CopiedFromMarker} {calendarEvent.OriginalEventId}]";
-                appointment.Body = new MessageBody(
-                    BodyType.Text,
-                    (calendarEvent.Body ?? string.Empty) + metadata);
+                appointment.SetExtendedProperty(OriginalEventIdProperty, calendarEvent.OriginalEventId);
+
+                if (calendarEvent.SourceCalendarId.HasValue)
+                {
+                    appointment.SetExtendedProperty(SourceCalendarIdProperty, calendarEvent.SourceCalendarId.Value.ToString());
+                }
             }
 
             var folderId = GetCalendarFolderId();
-            await System.Threading.Tasks.Task.Run(() => appointment.Save(folderId), cancellationToken);
+            await appointment.Save(folderId);
+
+            calendarEvent.ExternalId = appointment.Id.UniqueId;
 
             _logger.LogInformation(
                 "Calendar event created with ID: {EventId}",
@@ -163,8 +210,8 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
     /// <summary>
     /// Executes an operation with retry logic and exponential backoff
     /// </summary>
-    private async System.Threading.Tasks.Task<T> ExecuteWithRetryAsync<T>(
-        Func<System.Threading.Tasks.Task<T>> operation,
+    private async Task<T> ExecuteWithRetryAsync<T>(
+        Func<Task<T>> operation,
         CancellationToken cancellationToken)
     {
         Exception? lastException = null;
@@ -239,31 +286,11 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
     }
 
     /// <summary>
-    /// Creates a property set with commonly needed appointment properties
-    /// </summary>
-    private static PropertySet CreatePropertySet()
-    {
-        return new PropertySet(
-            BasePropertySet.FirstClassProperties,
-            AppointmentSchema.Subject,
-            AppointmentSchema.Start,
-            AppointmentSchema.End,
-            AppointmentSchema.Location,
-            AppointmentSchema.Body,
-            AppointmentSchema.IsAllDayEvent,
-            AppointmentSchema.Organizer,
-            AppointmentSchema.LastModifiedTime
-        );
-    }
-
-    /// <summary>
     /// Gets the folder ID for the calendar
     /// </summary>
-    private static FolderId GetCalendarFolderId()
+    private FolderId GetCalendarFolderId()
     {
-        // For now, use the default calendar
-        // TODO: Support custom calendar folders
-        return new FolderId(WellKnownFolderName.Calendar);
+        return new FolderId(_calendar.ExternalId);
     }
 
     /// <summary>
@@ -271,42 +298,39 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
     /// </summary>
     private DomainCalendarEvent MapToCalendarEvent(Appointment appointment)
     {
-        // Check if this is a copied event by looking for metadata in body
-        var body = appointment.Body.Text ?? string.Empty;
-        var isCopiedEvent = body.Contains(CopiedFromMarker, StringComparison.Ordinal);
-        string? originalEventId = null;
+        // Read metadata from extended properties
+        var hasOriginalEventId = appointment.TryGetProperty(OriginalEventIdProperty, out string? originalEventId);
+        var hasSourceCalendarId = appointment.TryGetProperty(SourceCalendarIdProperty, out string? sourceCalendarIdStr);
 
-        if (isCopiedEvent)
+        Guid? sourceCalendarId = null;
+        if (hasSourceCalendarId && !string.IsNullOrEmpty(sourceCalendarIdStr) && Guid.TryParse(sourceCalendarIdStr, out var parsedId))
         {
-            var startIndex = body.IndexOf(CopiedFromMarker, StringComparison.Ordinal);
-            var endIndex = body.IndexOf("]", startIndex, StringComparison.Ordinal);
-            if (startIndex >= 0 && endIndex > startIndex)
-            {
-                var metadataStart = startIndex + CopiedFromMarker.Length;
-                originalEventId = body.Substring(metadataStart, endIndex - metadataStart).Trim();
-                // Remove metadata from body
-                body = body.Substring(0, startIndex).Trim();
-            }
+            sourceCalendarId = parsedId;
         }
+
+        var isCopiedEvent = hasOriginalEventId && !string.IsNullOrEmpty(originalEventId);
+
+        // Determine body type from Exchange appointment
+        var bodyType = appointment.Body.BodyType == BodyType.HTML 
+            ? CalendarEventBodyType.Html 
+            : CalendarEventBodyType.Text;
 
         return new DomainCalendarEvent
         {
             Id = Guid.NewGuid(), // Generate new ID for domain
             ExternalId = appointment.Id.UniqueId,
             Subject = appointment.Subject,
-            Body = body,
+            Body = appointment.Body.Text ?? string.Empty,
+            BodyType = bodyType,
             Start = appointment.Start,
             End = appointment.End,
             Location = appointment.Location,
             IsAllDay = appointment.IsAllDayEvent,
             IsRecurring = appointment.IsRecurring,
             Organizer = appointment.Organizer?.Address,
-            CalendarId = _calendarId,
-            IsCopiedEvent = isCopiedEvent,
-            OriginalEventId = originalEventId,
-            // Note: SourceCalendarId cannot be reliably determined from current metadata
-            // Would require using extended properties for proper implementation
-            SourceCalendarId = isCopiedEvent ? null : null
+            CalendarId = _calendar.Id,
+            OriginalEventId = isCopiedEvent ? originalEventId : null,
+            SourceCalendarId = sourceCalendarId
         };
     }
 }
