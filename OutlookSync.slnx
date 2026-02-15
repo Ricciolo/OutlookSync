@@ -7,6 +7,7 @@
     <Project Path="src/OutlookSync.Application/OutlookSync.Application.csproj" />
     <Project Path="src/OutlookSync.Domain/OutlookSync.Domain.csproj" />
     <Project Path="src/OutlookSync.Infrastructure/OutlookSync.Infrastructure.csproj" />
+    <Project Path="src/OutlookSync.Web/OutlookSync.Web.csproj" />
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/OutlookSync.Api.Tests/OutlookSync.Api.Tests.csproj" />

@@ -1,0 +1,94 @@
+﻿@page "/"
+@using OutlookSync.Domain.Aggregates
+
+<PageTitle>Dashboard - OutlookSync</PageTitle>
+
+<div class="space-y-6">
+    <!-- Welcome Section -->
+    <div class="card">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Welcome to OutlookSync</h1>
+        <p class="text-gray-600">Manage your Outlook calendar synchronization with ease.</p>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="card">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">Active Calendars</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2">0</p>
+                </div>
+                <div class="bg-blue-100 p-3 rounded-full">
+                    <svg class="w-8 h-8 text-outlook-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">Credentials</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2">0</p>
+                </div>
+                <div class="bg-green-100 p-3 rounded-full">
+                    <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">Last Sync</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2">-</p>
+                </div>
+                <div class="bg-purple-100 p-3 rounded-full">
+                    <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Getting Started -->
+    <div class="card">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Getting Started</h2>
+        <div class="space-y-4">
+            <div class="flex items-start space-x-3">
+                <div class="bg-blue-100 text-outlook-blue rounded-full p-2">
+                    <span class="text-sm font-bold">1</span>
+                </div>
+                <div>
+                    <h3 class="font-medium text-gray-900">Configure Credentials</h3>
+                    <p class="text-sm text-gray-600">Set up your Outlook authentication using device flow</p>
+                    <a href="/credentials" class="text-sm text-outlook-blue hover:underline mt-1 inline-block">Go to Credentials →</a>
+                </div>
+            </div>
+            <div class="flex items-start space-x-3">
+                <div class="bg-blue-100 text-outlook-blue rounded-full p-2">
+                    <span class="text-sm font-bold">2</span>
+                </div>
+                <div>
+                    <h3 class="font-medium text-gray-900">Add Calendars</h3>
+                    <p class="text-sm text-gray-600">Select the calendars you want to synchronize</p>
+                    <a href="/calendars" class="text-sm text-outlook-blue hover:underline mt-1 inline-block">Manage Calendars →</a>
+                </div>
+            </div>
+            <div class="flex items-start space-x-3">
+                <div class="bg-blue-100 text-outlook-blue rounded-full p-2">
+                    <span class="text-sm font-bold">3</span>
+                </div>
+                <div>
+                    <h3 class="font-medium text-gray-900">Configure Sync Settings</h3>
+                    <p class="text-sm text-gray-600">Customize privacy, field selection, and sync intervals</p>
+                    <a href="/settings" class="text-sm text-outlook-blue hover:underline mt-1 inline-block">Configure Settings →</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

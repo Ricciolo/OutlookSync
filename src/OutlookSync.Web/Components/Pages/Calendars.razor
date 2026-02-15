@@ -1,0 +1,150 @@
+@page "/calendars"
+@using Microsoft.EntityFrameworkCore
+@using OutlookSync.Domain.Aggregates
+@using OutlookSync.Domain.Repositories
+@inject ICalendarRepository CalendarRepository
+
+<PageTitle>Calendars - OutlookSync</PageTitle>
+
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Calendars</h1>
+            <p class="text-gray-600 mt-1">Manage your synchronized calendars</p>
+        </div>
+        <button @onclick="ShowAddCalendarForm" class="btn-primary">
+            <svg class="w-5 h-5 inline-block mr-2 -mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Add Calendar
+        </button>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="card text-center py-12">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-outlook-blue"></div>
+            <p class="mt-4 text-gray-600">Loading calendars...</p>
+        </div>
+    }
+    else if (calendars == null || !calendars.Any())
+    {
+        <!-- Empty State -->
+        <div class="card text-center py-12">
+            <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No calendars configured</h3>
+            <p class="text-gray-600 mb-6">Get started by adding your first calendar to synchronize</p>
+            <button @onclick="ShowAddCalendarForm" class="btn-primary">
+                Add Your First Calendar
+            </button>
+        </div>
+    }
+    else
+    {
+        <!-- Calendar List -->
+        <div class="space-y-4">
+            @foreach (var calendar in calendars)
+            {
+                <div class="card">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-3">
+                                <h3 class="text-lg font-semibold text-gray-900">@calendar.Name</h3>
+                                @if (calendar.IsEnabled)
+                                {
+                                    <span class="badge badge-success">Active</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-danger">Disabled</span>
+                                }
+                            </div>
+                            <p class="text-sm text-gray-600 mt-1">External ID: @calendar.ExternalId</p>
+                            <div class="mt-3 space-y-1 text-sm">
+                                <p class="text-gray-700">
+                                    <span class="font-medium">Sync Interval:</span> 
+                                    @calendar.Configuration.Interval.Minutes minutes
+                                </p>
+                                <p class="text-gray-700">
+                                    <span class="font-medium">Start Date:</span> 
+                                    @calendar.Configuration.StartDate.ToString("yyyy-MM-dd")
+                                </p>
+                                <p class="text-gray-700">
+                                    <span class="font-medium">Privacy:</span> 
+                                    @(calendar.Configuration.IsPrivate ? "Private" : "Public")
+                                </p>
+                                @if (calendar.LastSyncAt.HasValue)
+                                {
+                                    <p class="text-gray-700">
+                                        <span class="font-medium">Last Sync:</span> 
+                                        @calendar.LastSyncAt.Value.ToString("yyyy-MM-dd HH:mm:ss")
+                                    </p>
+                                }
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button @onclick="() => ToggleCalendar(calendar)" 
+                                    class="@(calendar.IsEnabled ? "btn-secondary" : "btn-primary")">
+                                @(calendar.IsEnabled ? "Disable" : "Enable")
+                            </button>
+                            <button @onclick="() => EditCalendar(calendar)" class="btn-secondary">
+                                Edit
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<Calendar>? calendars;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCalendars();
+    }
+
+    private async Task LoadCalendars()
+    {
+        isLoading = true;
+        try
+        {
+            calendars = await CalendarRepository.Query.ToListAsync();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ShowAddCalendarForm()
+    {
+        // TODO: Navigate to add calendar page or show modal
+    }
+
+    private async Task ToggleCalendar(Calendar calendar)
+    {
+        if (calendar.IsEnabled)
+        {
+            calendar.Disable();
+        }
+        else
+        {
+            calendar.Enable();
+        }
+        
+        await CalendarRepository.UpdateAsync(calendar);
+        await LoadCalendars();
+    }
+
+    private void EditCalendar(Calendar calendar)
+    {
+        // TODO: Navigate to edit calendar page or show modal
+    }
+}

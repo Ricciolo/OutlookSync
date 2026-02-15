@@ -1,0 +1,231 @@
+@page "/settings"
+@using OutlookSync.Domain.ValueObjects
+
+<PageTitle>Settings - OutlookSync</PageTitle>
+
+<div class="space-y-6">
+    <!-- Header -->
+    <div>
+        <h1 class="text-3xl font-bold text-gray-900">Settings</h1>
+        <p class="text-gray-600 mt-1">Configure sync behavior and privacy settings</p>
+    </div>
+
+    <!-- Privacy Settings -->
+    <div class="card">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Privacy Settings</h2>
+        <div class="space-y-4">
+            <div class="flex items-center justify-between">
+                <div class="flex-1">
+                    <label class="form-label mb-0">Private Mode</label>
+                    <p class="text-sm text-gray-600">When enabled, event details will be hidden from synchronized calendars</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" @bind="isPrivate" class="sr-only peer">
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Field Selection -->
+    <div class="card">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Field Selection</h2>
+        <p class="text-sm text-gray-600 mb-4">Choose which calendar fields to synchronize</p>
+        
+        <!-- Preset Buttons -->
+        <div class="flex space-x-2 mb-6">
+            <button @onclick="SelectAllFields" class="btn-secondary">
+                Select All
+            </button>
+            <button @onclick="SelectEssentialFields" class="btn-secondary">
+                Essential Only
+            </button>
+            <button @onclick="DeselectAllFields" class="btn-secondary">
+                Deselect All
+            </button>
+        </div>
+
+        <!-- Field Checkboxes -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="flex items-center space-x-3">
+                <input type="checkbox" @bind="fieldSelection.Subject" id="field-subject" 
+                       class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                <label for="field-subject" class="text-sm font-medium text-gray-700 cursor-pointer">
+                    Subject
+                </label>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <input type="checkbox" @bind="fieldSelection.StartTime" id="field-start" 
+                       class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                <label for="field-start" class="text-sm font-medium text-gray-700 cursor-pointer">
+                    Start Time
+                </label>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <input type="checkbox" @bind="fieldSelection.EndTime" id="field-end" 
+                       class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                <label for="field-end" class="text-sm font-medium text-gray-700 cursor-pointer">
+                    End Time
+                </label>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <input type="checkbox" @bind="fieldSelection.Location" id="field-location" 
+                       class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                <label for="field-location" class="text-sm font-medium text-gray-700 cursor-pointer">
+                    Location
+                </label>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <input type="checkbox" @bind="fieldSelection.Attendees" id="field-attendees" 
+                       class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                <label for="field-attendees" class="text-sm font-medium text-gray-700 cursor-pointer">
+                    Attendees
+                </label>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <input type="checkbox" @bind="fieldSelection.Body" id="field-body" 
+                       class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                <label for="field-body" class="text-sm font-medium text-gray-700 cursor-pointer">
+                    Body/Description
+                </label>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <input type="checkbox" @bind="fieldSelection.Organizer" id="field-organizer" 
+                       class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                <label for="field-organizer" class="text-sm font-medium text-gray-700 cursor-pointer">
+                    Organizer
+                </label>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <input type="checkbox" @bind="fieldSelection.IsAllDay" id="field-allday" 
+                       class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                <label for="field-allday" class="text-sm font-medium text-gray-700 cursor-pointer">
+                    All Day Event
+                </label>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <input type="checkbox" @bind="fieldSelection.Recurrence" id="field-recurrence" 
+                       class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                <label for="field-recurrence" class="text-sm font-medium text-gray-700 cursor-pointer">
+                    Recurrence
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sync Configuration -->
+    <div class="card">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Sync Configuration</h2>
+        <div class="space-y-4">
+            <div>
+                <label class="form-label">Sync Start Date</label>
+                <input type="date" @bind="syncStartDate" class="form-input" />
+                <p class="text-sm text-gray-600 mt-1">Events before this date will not be synchronized</p>
+            </div>
+
+            <div>
+                <label class="form-label">Sync Interval</label>
+                <select @bind="syncInterval" class="form-input">
+                    <option value="15">Every 15 minutes</option>
+                    <option value="30">Every 30 minutes</option>
+                    <option value="60">Hourly</option>
+                    <option value="120">Every 2 hours</option>
+                    <option value="360">Every 6 hours</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Button -->
+    <div class="flex justify-end space-x-3">
+        <button @onclick="CancelChanges" class="btn-secondary">
+            Cancel
+        </button>
+        <button @onclick="SaveSettings" class="btn-primary">
+            Save Settings
+        </button>
+    </div>
+</div>
+
+@code {
+    private bool isPrivate = false;
+    private DateTime syncStartDate = DateTime.Today.AddDays(-30);
+    private int syncInterval = 30;
+
+    private class FieldSelectionModel
+    {
+        public bool Subject { get; set; } = true;
+        public bool StartTime { get; set; } = true;
+        public bool EndTime { get; set; } = true;
+        public bool Location { get; set; } = true;
+        public bool Attendees { get; set; } = true;
+        public bool Body { get; set; } = true;
+        public bool Organizer { get; set; } = true;
+        public bool IsAllDay { get; set; } = true;
+        public bool Recurrence { get; set; } = true;
+    }
+
+    private FieldSelectionModel fieldSelection = new();
+
+    protected override void OnInitialized()
+    {
+        // TODO: Load settings from database or configuration
+    }
+
+    private void SelectAllFields()
+    {
+        fieldSelection = new FieldSelectionModel();
+    }
+
+    private void SelectEssentialFields()
+    {
+        fieldSelection = new FieldSelectionModel
+        {
+            Subject = true,
+            StartTime = true,
+            EndTime = true,
+            Location = true,
+            Attendees = false,
+            Body = false,
+            Organizer = true,
+            IsAllDay = true,
+            Recurrence = true
+        };
+    }
+
+    private void DeselectAllFields()
+    {
+        fieldSelection = new FieldSelectionModel
+        {
+            Subject = false,
+            StartTime = false,
+            EndTime = false,
+            Location = false,
+            Attendees = false,
+            Body = false,
+            Organizer = false,
+            IsAllDay = false,
+            Recurrence = false
+        };
+    }
+
+    private async Task SaveSettings()
+    {
+        // TODO: Save settings to database
+        // Convert fieldSelection to CalendarFieldSelection
+        // Save configuration
+    }
+
+    private void CancelChanges()
+    {
+        // TODO: Reset to original values or navigate back
+    }
+}
