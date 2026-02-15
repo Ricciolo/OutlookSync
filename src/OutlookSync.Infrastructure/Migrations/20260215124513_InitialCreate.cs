@@ -47,12 +47,8 @@ namespace OutlookSync.Infrastructure.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Name = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
                     TokenStatus = table.Column<int>(type: "INTEGER", nullable: false),
-                    AccessToken = table.Column<string>(type: "TEXT", maxLength: 2000, nullable: true),
-                    RefreshToken = table.Column<string>(type: "TEXT", maxLength: 2000, nullable: true),
-                    TokenAcquiredAt = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    TokenExpiresAt = table.Column<DateTime>(type: "TEXT", nullable: true),
+                    StatusData = table.Column<byte[]>(type: "BLOB", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "TEXT", nullable: true)
                 },

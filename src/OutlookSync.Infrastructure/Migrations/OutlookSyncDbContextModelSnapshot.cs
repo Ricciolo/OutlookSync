@@ -65,27 +65,12 @@ namespace OutlookSync.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("AccessToken")
-                        .HasMaxLength(2000)
-                        .HasColumnType("TEXT");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("RefreshToken")
-                        .HasMaxLength(2000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("TokenAcquiredAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("TokenExpiresAt")
-                        .HasColumnType("TEXT");
+                    b.Property<byte[]>("StatusData")
+                        .HasColumnType("BLOB")
+                        .HasColumnName("StatusData");
 
                     b.Property<int>("TokenStatus")
                         .HasColumnType("INTEGER");
