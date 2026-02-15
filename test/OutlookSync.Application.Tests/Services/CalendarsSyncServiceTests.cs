@@ -3,7 +3,6 @@ using Moq;
 using OutlookSync.Application.Services;
 using OutlookSync.Domain.Aggregates;
 using OutlookSync.Domain.Repositories;
-using OutlookSync.Domain.Services;
 using OutlookSync.Domain.ValueObjects;
 
 namespace OutlookSync.Application.Tests.Services;
