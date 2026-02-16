@@ -15,6 +15,13 @@ public interface ICalendarEventRepository
     Task InitAsync(CancellationToken cancellationToken = default);
     
     /// <summary>
+    /// Gets all available calendars for the authenticated user
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>List of available calendars</returns>
+    Task<IReadOnlyList<AvailableCalendar>> GetAvailableCalendarsAsync(CancellationToken cancellationToken = default);
+    
+    /// <summary>
     /// Gets all events for the calendar this repository was created for
     /// </summary>
     Task<IReadOnlyList<CalendarEvent>> GetAllAsync(CancellationToken cancellationToken = default);

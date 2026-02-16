@@ -60,7 +60,6 @@
                                     <span class="badge badge-danger">Disabled</span>
                                 }
                             </div>
-                            <p class="text-sm text-gray-600 mt-1">External ID: @calendar.ExternalId</p>
                             <div class="mt-3 space-y-1 text-sm">
                                 <p class="text-gray-700">
                                     <span class="font-medium">Sync Interval:</span> 
@@ -98,4 +97,7 @@
         </div>
     }
 </div>
+
+<!-- Add Calendar Dialog -->
+<AddCalendarDialog @ref="_addCalendarDialog" OnCalendarAdded="OnCalendarAddedAsync" />
 

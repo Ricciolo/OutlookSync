@@ -155,6 +155,58 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
     }
 
     [Fact]
+    public async Task GetAvailableCalendarsAsync_ShouldThrow_WhenNotInitialized()
+    {
+        // Arrange
+        var calendar = CreateTestCalendar();
+        var credential = CreateTestCredential();
+
+        var repository = new ExchangeCalendarEventRepository(
+            calendar,
+            credential,
+            _logger);
+
+        // Act & Assert - calling GetAvailableCalendarsAsync without InitAsync should throw
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await repository.GetAvailableCalendarsAsync());
+
+        Assert.Contains("has not been initialized", exception.Message);
+    }
+
+    [Fact]
+    public async Task GetAvailableCalendarsAsync_ShouldReturnCalendars_WhenValidCredentials()
+    {
+        // Arrange
+        ValidateConfiguration();
+
+        var calendar = CreateTestCalendar();
+        var credential = CreateTestCredential();
+
+        var repository = new ExchangeCalendarEventRepository(
+            calendar,
+            credential,
+            _logger);
+
+        // Act
+        await repository.InitAsync();
+        var calendars = await repository.GetAvailableCalendarsAsync();
+
+        // Assert
+        Assert.NotNull(calendars);
+        Assert.IsAssignableFrom<IReadOnlyList<AvailableCalendar>>(calendars);
+        Assert.NotEmpty(calendars);
+        
+        // Verify each calendar has required properties
+        foreach (var cal in calendars)
+        {
+            Assert.NotNull(cal.ExternalId);
+            Assert.NotEmpty(cal.ExternalId);
+            Assert.NotNull(cal.Name);
+            Assert.NotEmpty(cal.Name);
+        }
+    }
+
+    [Fact]
     public async Task AddAsync_ShouldCreateEvent_WhenValidEvent()
     {
         // Arrange

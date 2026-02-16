@@ -1,0 +1,42 @@
+@using OutlookSync.Domain.Aggregates
+
+@if (IsVisible && Credential != null)
+{
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" @onclick="OnCancel">
+        <div class="relative top-20 mx-auto p-6 border w-full max-w-md shadow-lg rounded-lg bg-white" @onclick:stopPropagation="true">
+            <div class="flex items-start space-x-4">
+                <div class="flex-shrink-0">
+                    <svg class="w-12 h-12 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Delete Credential</h3>
+                    <p class="text-sm text-gray-600 mb-4">
+                        Are you sure you want to delete the credential "<strong>@Credential.FriendlyName</strong>"?
+                    </p>
+                    <div class="p-3 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
+                        <p class="text-xs text-yellow-800">
+                            <strong>Note:</strong> This will only remove the credential from this application. 
+                            To completely revoke access, you should also visit 
+                            <a href="https://account.microsoft.com/privacy/app-permissions" 
+                               target="_blank" 
+                               class="underline hover:text-yellow-900">
+                                Microsoft Account Permissions
+                            </a> 
+                            and remove the "Microsoft Outlook" or "Outlook Mobile" app permission.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-3 mt-4">
+                <button @onclick="OnCancel" class="btn-secondary">
+                    Cancel
+                </button>
+                <button @onclick="OnConfirm" class="btn-danger">
+                    Delete
+                </button>
+            </div>
+        </div>
+    </div>
+}

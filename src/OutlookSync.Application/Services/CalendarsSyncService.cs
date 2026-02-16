@@ -116,7 +116,7 @@ public class CalendarsSyncService(
 
             // Create repository for this calendar with its credentials
             // The factory will validate the credential and token
-            var sourceRepository = calendarEventRepositoryFactory.Create(sourceCalendar, credential);
+            var sourceRepository = calendarEventRepositoryFactory.Create(credential, sourceCalendar);
             
             // Initialize repository to verify connectivity and access
             await sourceRepository.InitAsync(cancellationToken);
@@ -146,7 +146,7 @@ public class CalendarsSyncService(
                     }
 
                     // The factory will validate the credential and token
-                    var targetRepository = calendarEventRepositoryFactory.Create(targetCalendar, targetCredential);
+                    var targetRepository = calendarEventRepositoryFactory.Create(targetCredential, targetCalendar);
                     
                     // Initialize repository to verify connectivity and access
                     await targetRepository.InitAsync(cancellationToken);

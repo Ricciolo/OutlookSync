@@ -10,6 +10,7 @@ public partial class Calendars
 {
     private List<Calendar>? _calendars;
     private bool _isLoading = true;
+    private AddCalendarDialog? _addCalendarDialog;
 
     /// <inheritdoc/>
     protected override async Task OnInitializedAsync()
@@ -30,12 +31,13 @@ public partial class Calendars
         }
     }
 
-#pragma warning disable CA1822 // Mark members as static - Will be implemented with instance access
-    private void ShowAddCalendarForm()
+    private async Task ShowAddCalendarForm()
     {
-        // TODO: Navigate to add calendar page or show modal
+        if (_addCalendarDialog != null)
+        {
+            await _addCalendarDialog.OpenAsync();
+        }
     }
-#pragma warning restore CA1822
 
     private async Task ToggleCalendarAsync(Calendar calendar)
     {
@@ -49,6 +51,11 @@ public partial class Calendars
         }
         
         await CalendarRepository.UpdateAsync(calendar);
+        await LoadCalendarsAsync();
+    }
+
+    private async Task OnCalendarAddedAsync()
+    {
         await LoadCalendarsAsync();
     }
 
