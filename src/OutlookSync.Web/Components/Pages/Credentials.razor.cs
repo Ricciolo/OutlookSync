@@ -108,6 +108,8 @@ public partial class Credentials : IAsyncDisposable
             _currentSessionId = result.SessionId;
             _deviceFlowStep = DeviceFlowStep.WaitingForAuth;
 
+            StateHasChanged();
+
             StartPolling();
         }
         catch (Exception ex)
@@ -258,12 +260,7 @@ public partial class Credentials : IAsyncDisposable
     /// <summary>
     /// Confirms the deletion of a credential (synchronous wrapper)
     /// </summary>
-    private void ConfirmDelete() => _ = ConfirmDeleteAsync();
-
-    /// <summary>
-    /// Confirms the deletion of a credential
-    /// </summary>
-    private async Task ConfirmDeleteAsync()
+    private async Task ConfirmDelete()
     {
         if (_credentialToDelete != null)
         {

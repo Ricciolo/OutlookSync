@@ -38,6 +38,13 @@ public class CredentialsService(ILogger<CredentialsService> logger) : ICredentia
                 FriendlyName = friendlyName
             };
 
+            // Configure token cache BEFORE starting authentication
+            // This ensures events are registered when MSAL serializes the token
+            MsalHelper.ConfigureTokenCache(
+                app,
+                getStatusData: () => credential.StatusData,
+                updateStatusData: data => credential.UpdateStatusData(data));
+
             // Create a cancellation token source for the device code flow
             var deviceCodeCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             
@@ -150,15 +157,9 @@ public class CredentialsService(ILogger<CredentialsService> logger) : ICredentia
                 "Device code flow completed successfully. Account: {Account}",
                 authResult.Account.Username);
 
-            // Configure token cache to update the credential
-            MsalHelper.ConfigureTokenCache(
-                session.PublicClientApp,
-                getStatusData: () => session.Credential.StatusData,
-                updateStatusData: data => session.Credential.UpdateStatusData(data));
-
-            // Force token cache serialization
-            await session.PublicClientApp.GetAccountsAsync();
-
+            // Token cache was already configured in InitializeCredentialAsync
+            // The credential's StatusData and TokenStatus should already be updated
+            
             // Remove the session from pending sessions
             _pendingSessions.TryRemove(sessionId, out _);
             session.CancellationTokenSource.Dispose();
