@@ -36,6 +36,7 @@ public static class ServiceCollectionExtensions
         // Specific repositories
         services.AddTransient<Domain.Repositories.ICalendarRepository, CalendarRepository>();
         services.AddTransient<Domain.Repositories.ICredentialRepository, CredentialRepository>();
+        services.AddTransient<ICalendarBindingRepository, CalendarBindingRepository>();
         
         // Calendar Event Repository Factory
         services.AddSingleton<ICalendarEventRepositoryFactory, CalendarEventRepositoryFactory>();

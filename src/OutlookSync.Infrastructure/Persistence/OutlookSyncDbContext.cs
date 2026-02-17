@@ -17,6 +17,8 @@ public class OutlookSyncDbContext: DbContext
     
     public DbSet<Credential> Credentials => Set<Credential>();
     
+    public DbSet<CalendarBinding> CalendarBindings => Set<CalendarBinding>();
+    
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

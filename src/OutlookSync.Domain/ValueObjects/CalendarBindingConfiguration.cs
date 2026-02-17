@@ -105,6 +105,26 @@ public record ColorExclusionRule
     {
         ExcludedColors = colors
     };
+    
+    /// <summary>
+    /// Serializes excluded colors to a comma-separated string for storage
+    /// </summary>
+    public string ToSerializedString() => string.Join(",", ExcludedColors);
+    
+    /// <summary>
+    /// Deserializes excluded colors from a comma-separated string
+    /// </summary>
+    public static ColorExclusionRule FromSerializedString(string? serialized)
+    {
+        if (string.IsNullOrWhiteSpace(serialized))
+            return None();
+            
+        var colors = serialized.Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => Enum.Parse<EventColor>(s.Trim()))
+            .ToArray();
+            
+        return Exclude(colors);
+    }
 }
 
 /// <summary>
@@ -129,6 +149,26 @@ public record RsvpExclusionRule
     {
         ExcludedResponses = responses
     };
+    
+    /// <summary>
+    /// Serializes excluded responses to a comma-separated string for storage
+    /// </summary>
+    public string ToSerializedString() => string.Join(",", ExcludedResponses);
+    
+    /// <summary>
+    /// Deserializes excluded responses from a comma-separated string
+    /// </summary>
+    public static RsvpExclusionRule FromSerializedString(string? serialized)
+    {
+        if (string.IsNullOrWhiteSpace(serialized))
+            return None();
+            
+        var responses = serialized.Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => Enum.Parse<RsvpResponse>(s.Trim()))
+            .ToArray();
+            
+        return Exclude(responses);
+    }
 }
 
 /// <summary>
@@ -153,6 +193,26 @@ public record StatusExclusionRule
     {
         ExcludedStatuses = statuses
     };
+    
+    /// <summary>
+    /// Serializes excluded statuses to a comma-separated string for storage
+    /// </summary>
+    public string ToSerializedString() => string.Join(",", ExcludedStatuses);
+    
+    /// <summary>
+    /// Deserializes excluded statuses from a comma-separated string
+    /// </summary>
+    public static StatusExclusionRule FromSerializedString(string? serialized)
+    {
+        if (string.IsNullOrWhiteSpace(serialized))
+            return None();
+            
+        var statuses = serialized.Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => Enum.Parse<EventStatus>(s.Trim()))
+            .ToArray();
+            
+        return Exclude(statuses);
+    }
 }
 
 /// <summary>
