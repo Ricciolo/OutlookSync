@@ -11,36 +11,37 @@ namespace OutlookSync.Infrastructure.Repositories;
 public class CalendarEventRepositoryFactory(
     ILogger<ExchangeCalendarEventRepository> logger) : ICalendarEventRepositoryFactory
 {
-    public ICalendarEventRepository Create(Credential credential, Calendar? calendar)
+    public ICalendarEventRepository Create(Credential credential, string? calendarExternalId, string? calendarName = null)
     {
         // Validate credential and token
         if (credential == null)
         {
             throw new InvalidOperationException(
-                calendar is not null 
-                    ? $"Credential not found for calendar '{calendar.Name}'"
+                calendarName is not null 
+                    ? $"Credential not found for calendar '{calendarName}'"
                     : "Credential not found");
         }
 
         if (!credential.IsTokenValid())
         {
             throw new InvalidOperationException(
-                calendar is not null
-                    ? $"Token is invalid or expired for calendar '{calendar.Name}'"
+                calendarName is not null
+                    ? $"Token is invalid or expired for calendar '{calendarName}'"
                     : "Token is invalid or expired");
         }
 
         if (credential.StatusData == null || credential.StatusData.Length == 0)
         {
             throw new InvalidOperationException(
-                calendar is not null
-                    ? $"Status data is missing for calendar '{calendar.Name}'"
+                calendarName is not null
+                    ? $"Status data is missing for calendar '{calendarName}'"
                     : "Status data is missing");
         }
 
         // Create Exchange calendar event repository
         var repository = new ExchangeCalendarEventRepository(
-            calendar,
+            calendarExternalId,
+            calendarName,
             credential,
             logger,
             RetryPolicy.CreateDefault());

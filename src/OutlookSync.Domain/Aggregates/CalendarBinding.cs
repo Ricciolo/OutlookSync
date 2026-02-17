@@ -22,14 +22,24 @@ public class CalendarBinding : Entity, IAggregateRoot
     }
     
     /// <summary>
-    /// Gets the source calendar identifier (events are copied FROM this calendar).
+    /// Gets the source credential identifier (credential for accessing the source calendar).
     /// </summary>
-    public required Guid SourceCalendarId { get; init; }
+    public required Guid SourceCredentialId { get; init; }
     
     /// <summary>
-    /// Gets the target calendar identifier (events are copied TO this calendar).
+    /// Gets the source calendar external identifier (from Exchange/Outlook).
     /// </summary>
-    public required Guid TargetCalendarId { get; init; }
+    public required string SourceCalendarExternalId { get; init; }
+    
+    /// <summary>
+    /// Gets the target credential identifier (credential for accessing the target calendar).
+    /// </summary>
+    public required Guid TargetCredentialId { get; init; }
+    
+    /// <summary>
+    /// Gets the target calendar external identifier (from Exchange/Outlook).
+    /// </summary>
+    public required string TargetCalendarExternalId { get; init; }
     
     /// <summary>
     /// Gets a value indicating whether this binding is enabled for synchronization.
@@ -153,17 +163,22 @@ public class CalendarBinding : Entity, IAggregateRoot
     /// <summary>
     /// Validates that this binding does not create a duplicate source-target pair.
     /// </summary>
-    /// <param name="sourceCalendarId">Source calendar ID to validate.</param>
-    /// <param name="targetCalendarId">Target calendar ID to validate.</param>
+    /// <param name="sourceCredentialId">Source credential ID to validate.</param>
+    /// <param name="sourceExternalId">Source calendar external ID to validate.</param>
+    /// <param name="targetCredentialId">Target credential ID to validate.</param>
+    /// <param name="targetExternalId">Target calendar external ID to validate.</param>
     /// <returns>True if the binding is valid (not a duplicate), false otherwise.</returns>
-    public bool IsValidBinding(Guid sourceCalendarId, Guid targetCalendarId)
+    public bool IsValidBinding(Guid sourceCredentialId, string sourceExternalId, Guid targetCredentialId, string targetExternalId)
     {
-        // Same calendar cannot be both source and target
-        if (sourceCalendarId == targetCalendarId)
+        // Same credential and calendar cannot be both source and target
+        if (sourceCredentialId == targetCredentialId && sourceExternalId == targetExternalId)
             return false;
             
         // Check if this creates a duplicate binding
-        return !(SourceCalendarId == sourceCalendarId && TargetCalendarId == targetCalendarId);
+        return !(SourceCredentialId == sourceCredentialId && 
+                 SourceCalendarExternalId == sourceExternalId && 
+                 TargetCredentialId == targetCredentialId && 
+                 TargetCalendarExternalId == targetExternalId);
     }
     
     /// <summary>
@@ -175,7 +190,9 @@ public class CalendarBinding : Entity, IAggregateRoot
     {
         ArgumentNullException.ThrowIfNull(other, nameof(other));
         
-        return SourceCalendarId == other.TargetCalendarId && 
-               TargetCalendarId == other.SourceCalendarId;
+        return SourceCredentialId == other.TargetCredentialId && 
+               SourceCalendarExternalId == other.TargetCalendarExternalId &&
+               TargetCredentialId == other.SourceCredentialId && 
+               TargetCalendarExternalId == other.SourceCalendarExternalId;
     }
 }

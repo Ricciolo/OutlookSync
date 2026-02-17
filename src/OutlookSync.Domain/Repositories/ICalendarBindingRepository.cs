@@ -8,14 +8,22 @@ namespace OutlookSync.Domain.Repositories;
 public interface ICalendarBindingRepository : IRepository<CalendarBinding>
 {
     /// <summary>
-    /// Checks if a calendar binding already exists for the given source and target calendars.
+    /// Checks if a calendar binding already exists for the given source and target calendar identifiers.
     /// </summary>
-    /// <param name="sourceCalendarId">The source calendar identifier.</param>
-    /// <param name="targetCalendarId">The target calendar identifier.</param>
+    /// <param name="sourceCredentialId">The source credential identifier.</param>
+    /// <param name="sourceExternalId">The source calendar external identifier.</param>
+    /// <param name="targetCredentialId">The target credential identifier.</param>
+    /// <param name="targetExternalId">The target calendar external identifier.</param>
     /// <param name="excludeBindingId">Optional binding ID to exclude from the check (for updates).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if a duplicate binding exists, false otherwise.</returns>
-    Task<bool> ExistsAsync(Guid sourceCalendarId, Guid targetCalendarId, Guid? excludeBindingId = null, CancellationToken cancellationToken = default);
+    Task<bool> ExistsAsync(
+        Guid sourceCredentialId, 
+        string sourceExternalId, 
+        Guid targetCredentialId, 
+        string targetExternalId, 
+        Guid? excludeBindingId = null, 
+        CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Gets all enabled calendar bindings.
@@ -25,26 +33,38 @@ public interface ICalendarBindingRepository : IRepository<CalendarBinding>
     Task<IReadOnlyList<CalendarBinding>> GetEnabledAsync(CancellationToken cancellationToken = default);
     
     /// <summary>
-    /// Gets all calendar bindings where the specified calendar is the source.
+    /// Gets all calendar bindings where the specified credential and external ID is the source.
     /// </summary>
-    /// <param name="sourceCalendarId">The source calendar identifier.</param>
+    /// <param name="sourceCredentialId">The source credential identifier.</param>
+    /// <param name="sourceExternalId">The source calendar external identifier.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Collection of calendar bindings.</returns>
-    Task<IReadOnlyList<CalendarBinding>> GetBySourceCalendarAsync(Guid sourceCalendarId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<CalendarBinding>> GetBySourceAsync(
+        Guid sourceCredentialId, 
+        string sourceExternalId, 
+        CancellationToken cancellationToken = default);
     
     /// <summary>
-    /// Gets all calendar bindings where the specified calendar is the target.
+    /// Gets all calendar bindings where the specified credential and external ID is the target.
     /// </summary>
-    /// <param name="targetCalendarId">The target calendar identifier.</param>
+    /// <param name="targetCredentialId">The target credential identifier.</param>
+    /// <param name="targetExternalId">The target calendar external identifier.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Collection of calendar bindings.</returns>
-    Task<IReadOnlyList<CalendarBinding>> GetByTargetCalendarAsync(Guid targetCalendarId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<CalendarBinding>> GetByTargetAsync(
+        Guid targetCredentialId, 
+        string targetExternalId, 
+        CancellationToken cancellationToken = default);
     
     /// <summary>
-    /// Gets all calendar bindings involving the specified calendar (as source or target).
+    /// Gets all calendar bindings involving the specified credential and external ID (as source or target).
     /// </summary>
-    /// <param name="calendarId">The calendar identifier.</param>
+    /// <param name="credentialId">The credential identifier.</param>
+    /// <param name="externalId">The calendar external identifier.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Collection of calendar bindings.</returns>
-    Task<IReadOnlyList<CalendarBinding>> GetByCalendarAsync(Guid calendarId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<CalendarBinding>> GetByCredentialAndExternalIdAsync(
+        Guid credentialId, 
+        string externalId, 
+        CancellationToken cancellationToken = default);
 }

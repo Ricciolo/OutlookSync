@@ -18,12 +18,16 @@ public class CalendarBindingConfiguration : IEntityTypeConfiguration<CalendarBin
         
         builder.Property(cb => cb.Name).HasMaxLength(200).IsRequired();
         
-        builder.Property(cb => cb.SourceCalendarId).IsRequired();
+        builder.Property(cb => cb.SourceCredentialId).IsRequired();
         
-        builder.Property(cb => cb.TargetCalendarId).IsRequired();
+        builder.Property(cb => cb.SourceCalendarExternalId).HasMaxLength(500).IsRequired();
+        
+        builder.Property(cb => cb.TargetCredentialId).IsRequired();
+        
+        builder.Property(cb => cb.TargetCalendarExternalId).HasMaxLength(500).IsRequired();
         
         // Unique constraint: one source-target pair per binding
-        builder.HasIndex(cb => new { cb.SourceCalendarId, cb.TargetCalendarId })
+        builder.HasIndex(cb => new { cb.SourceCredentialId, cb.SourceCalendarExternalId, cb.TargetCredentialId, cb.TargetCalendarExternalId })
             .IsUnique()
             .HasDatabaseName("IX_CalendarBindings_SourceTarget_Unique");
         

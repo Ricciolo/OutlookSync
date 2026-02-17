@@ -40,13 +40,13 @@ public class EventFilteringService
     public static CalendarEvent TransformEvent(
         CalendarEvent sourceEvent,
         CalendarBinding binding,
-        Calendar sourceCalendar,
+        string sourceCalendarName,
         string newExternalId)
     {
         var config = binding.Configuration;
         
         // Transform title based on handling setting
-        var subject = TransformTitle(sourceEvent.Subject, config, sourceCalendar.Name);
+        var subject = TransformTitle(sourceEvent.Subject, config, sourceCalendarName);
         
         // Apply custom tag if specified
         if (!string.IsNullOrWhiteSpace(config.CustomTag))
@@ -60,7 +60,7 @@ public class EventFilteringService
         return new CalendarEvent
         {
             Id = Guid.NewGuid(),
-            CalendarId = binding.TargetCalendarId,
+            CalendarId = Guid.Empty, // No longer using calendar ID
             ExternalId = newExternalId,
             Subject = subject,
             Start = sourceEvent.Start,
