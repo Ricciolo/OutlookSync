@@ -1,0 +1,125 @@
+@page "/calendar-bindings"
+@rendermode InteractiveServer
+@inject OutlookSync.Domain.Repositories.ICalendarBindingRepository CalendarBindingRepository
+@inject OutlookSync.Domain.Repositories.IUnitOfWork UnitOfWork
+
+<PageTitle>Calendar Bindings - OutlookSync</PageTitle>
+
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Calendar Bindings</h1>
+            <p class="text-gray-600 mt-1">Manage your calendar synchronization bindings</p>
+        </div>
+        <button @onclick="ShowAddBindingForm" class="btn-primary">
+            <svg class="w-5 h-5 inline-block mr-2 -mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Add Binding
+        </button>
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="card text-center py-12">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-outlook-blue"></div>
+            <p class="mt-4 text-gray-600">Loading calendar bindings...</p>
+        </div>
+    }
+    else if (_bindings == null || !_bindings.Any())
+    {
+        <!-- Empty State -->
+        <div class="card text-center py-12">
+            <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+            </svg>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No calendar bindings configured</h3>
+            <p class="text-gray-600 mb-6">Get started by creating your first calendar binding to synchronize events between calendars</p>
+            <button @onclick="ShowAddBindingForm" class="btn-primary">
+                Add Your First Binding
+            </button>
+        </div>
+    }
+    else
+    {
+        <!-- Bindings List -->
+        <div class="space-y-4">
+            @foreach (var binding in _bindings)
+            {
+                <div class="card">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-3">
+                                <h3 class="text-lg font-semibold text-gray-900">@binding.Name</h3>
+                                @if (binding.IsEnabled)
+                                {
+                                    <span class="badge badge-success">Enabled</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-danger">Disabled</span>
+                                }
+                            </div>
+                            <div class="mt-3 space-y-1 text-sm">
+                                <p class="text-gray-700">
+                                    <span class="font-medium">Source:</span> 
+                                    @binding.SourceCalendarExternalId
+                                </p>
+                                <p class="text-gray-700">
+                                    <span class="font-medium">Target:</span> 
+                                    @binding.TargetCalendarExternalId
+                                </p>
+                                @if (binding.LastSyncAt.HasValue)
+                                {
+                                    <p class="text-gray-700">
+                                        <span class="font-medium">Last Sync:</span> 
+                                        @binding.LastSyncAt.Value.ToString("yyyy-MM-dd HH:mm:ss")
+                                        @if (!string.IsNullOrEmpty(binding.LastSyncError))
+                                        {
+                                            <span class="text-red-600 ml-2">
+                                                (Failed: @binding.LastSyncError)
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-green-600 ml-2">
+                                                (@binding.LastSyncEventCount events)
+                                            </span>
+                                        }
+                                    </p>
+                                }
+                                <p class="text-gray-700">
+                                    <span class="font-medium">Title Handling:</span> 
+                                    @binding.Configuration.TitleHandling
+                                </p>
+                                @if (binding.Configuration.MarkAsPrivate)
+                                {
+                                    <span class="badge badge-primary mt-1">Private</span>
+                                }
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button @onclick="() => ToggleBindingAsync(binding)" 
+                                    class="@(binding.IsEnabled ? "btn-secondary" : "btn-primary")">
+                                @(binding.IsEnabled ? "Disable" : "Enable")
+                            </button>
+                            <button @onclick="() => EditBinding(binding)" class="btn-secondary">
+                                Edit
+                            </button>
+                            <button @onclick="() => DeleteBindingAsync(binding)" class="btn-danger">
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<!-- Add Calendar Binding Dialog -->
+<AddCalendarBindingDialog @ref="_addBindingDialog" OnBindingAdded="OnBindingAddedAsync" />
+
+<!-- Edit Calendar Binding Dialog -->
+<EditCalendarBindingDialog @ref="_editBindingDialog" OnBindingUpdated="OnBindingUpdatedAsync" />

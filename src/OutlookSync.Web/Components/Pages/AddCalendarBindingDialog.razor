@@ -1,0 +1,263 @@
+@rendermode InteractiveServer
+@using OutlookSync.Domain.Aggregates
+@using OutlookSync.Domain.ValueObjects
+@inject OutlookSync.Domain.Repositories.ICredentialRepository CredentialRepository
+@inject OutlookSync.Domain.Repositories.ICalendarBindingRepository CalendarBindingRepository
+@inject OutlookSync.Domain.Repositories.ICalendarEventRepositoryFactory CalendarEventRepositoryFactory
+@inject OutlookSync.Domain.Repositories.IUnitOfWork UnitOfWork
+@inject Microsoft.Extensions.Logging.ILogger<AddCalendarBindingDialog> Logger
+
+@if (_isDialogOpen)
+{
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" @onclick="CloseDialog">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-2/3 xl:w-1/2 shadow-lg rounded-md bg-white max-h-[85vh] overflow-y-auto" @onclick:stopPropagation="true">
+            <!-- Dialog Header -->
+            <div class="flex items-center justify-between mb-6 pb-4 border-b sticky top-0 bg-white z-10">
+                <h2 class="text-2xl font-bold text-gray-900">Add Calendar Binding</h2>
+                <button @onclick="CloseDialog" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Wizard Progress -->
+            <div class="mb-8">
+                <div class="flex items-center justify-between mb-2">
+                    @for (int i = 1; i <= 4; i++)
+                    {
+                        var stepNumber = i;
+                        <div class="flex items-center @(i < 4 ? "flex-1" : "")">
+                            <div class="@GetStepClass(stepNumber) flex items-center justify-center w-10 h-10 rounded-full font-semibold">
+                                @stepNumber
+                            </div>
+                            @if (i < 4)
+                            {
+                                <div class="flex-1 h-1 mx-2 @(_currentStep > stepNumber ? "bg-outlook-blue" : "bg-gray-300")"></div>
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="flex justify-between text-sm text-gray-600 mt-2">
+                    <span class="flex-1 text-center">Source</span>
+                    <span class="flex-1 text-center">Target</span>
+                    <span class="flex-1 text-center">Configure</span>
+                    <span class="flex-1 text-center">Review</span>
+                </div>
+            </div>
+
+            <!-- Step Content -->
+            <div class="min-h-[300px]">
+                @if (_currentStep == 1)
+                {
+                    <div class="space-y-4">
+                        <p class="text-gray-700 mb-4">Select the source credential and calendar:</p>
+                        
+                        @if (_isLoadingCredentials)
+                        {
+                            <div class="flex justify-center py-8">
+                                <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-outlook-blue"></div>
+                            </div>
+                        }
+                        else if (_credentials == null || !_credentials.Any())
+                        {
+                            <div class="text-center py-8">
+                                <p class="text-gray-600 mb-4">No credentials found. Please add a credential first.</p>
+                                <a href="/credentials" class="btn-primary">Go to Credentials</a>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Source Credential</label>
+                                    <select @bind="_selectedSourceCredentialId" @bind:after="OnSourceCredentialChangedAsync" 
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-outlook-blue">
+                                        <option value="">-- Select a credential --</option>
+                                        @foreach (var credential in _credentials)
+                                        {
+                                            <option value="@credential.Id">@credential.FriendlyName</option>
+                                        }
+                                    </select>
+                                </div>
+
+                                @if (!string.IsNullOrEmpty(_selectedSourceCredentialId) && _sourceCalendars != null)
+                                {
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Source Calendar</label>
+                                        @if (_isLoadingSourceCalendars)
+                                        {
+                                            <div class="flex justify-center py-4">
+                                                <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-outlook-blue"></div>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <select @bind="_selectedSourceCalendar" 
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-outlook-blue">
+                                                <option value="">-- Select a calendar --</option>
+                                                @foreach (var calendar in _sourceCalendars)
+                                                {
+                                                    <option value="@calendar.ExternalId">@calendar.Name</option>
+                                                }
+                                            </select>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(_errorMessage))
+                        {
+                            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mt-4">
+                                @_errorMessage
+                            </div>
+                        }
+                    </div>
+                }
+                else if (_currentStep == 2)
+                {
+                    <div class="space-y-4">
+                        <p class="text-gray-700 mb-4">Select the target credential and calendar:</p>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Target Credential</label>
+                                <select @bind="_selectedTargetCredentialId" @bind:after="OnTargetCredentialChangedAsync" 
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-outlook-blue">
+                                    <option value="">-- Select a credential --</option>
+                                    @foreach (var credential in _credentials!)
+                                    {
+                                        <option value="@credential.Id">@credential.FriendlyName</option>
+                                    }
+                                </select>
+                            </div>
+
+                            @if (!string.IsNullOrEmpty(_selectedTargetCredentialId) && _targetCalendars != null)
+                            {
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Target Calendar</label>
+                                    @if (_isLoadingTargetCalendars)
+                                    {
+                                        <div class="flex justify-center py-4">
+                                            <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-outlook-blue"></div>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <select @bind="_selectedTargetCalendar" 
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-outlook-blue">
+                                            <option value="">-- Select a calendar --</option>
+                                            @foreach (var calendar in _targetCalendars)
+                                            {
+                                                <option value="@calendar.ExternalId">@calendar.Name</option>
+                                            }
+                                        </select>
+                                    }
+                                </div>
+                            }
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(_errorMessage))
+                        {
+                            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mt-4">
+                                @_errorMessage
+                            </div>
+                        }
+                    </div>
+                }
+                else if (_currentStep == 3)
+                {
+                    <div class="space-y-4">
+                        <CalendarBindingSettingsForm @ref="_settingsForm" />
+                        
+                        @if (!string.IsNullOrEmpty(_errorMessage))
+                        {
+                            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mt-4">
+                                @_errorMessage
+                            </div>
+                        }
+                    </div>
+                }
+                else if (_currentStep == 4)
+                {
+                    <div class="space-y-4">
+                        <p class="text-gray-700 mb-4">Review your binding configuration:</p>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Binding Name</label>
+                                <input type="text" @bind="_bindingName" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-outlook-blue"
+                                       placeholder="Enter binding name" />
+                            </div>
+
+                            <div class="card bg-gray-50">
+                                <h4 class="font-semibold text-gray-900 mb-2">Source</h4>
+                                <p class="text-sm text-gray-700">
+                                    <span class="font-medium">Credential:</span> @GetCredentialName(_selectedSourceCredentialId)
+                                </p>
+                                <p class="text-sm text-gray-700">
+                                    <span class="font-medium">Calendar:</span> @GetCalendarName(_sourceCalendars, _selectedSourceCalendar)
+                                </p>
+                            </div>
+
+                            <div class="card bg-gray-50">
+                                <h4 class="font-semibold text-gray-900 mb-2">Target</h4>
+                                <p class="text-sm text-gray-700">
+                                    <span class="font-medium">Credential:</span> @GetCredentialName(_selectedTargetCredentialId)
+                                </p>
+                                <p class="text-sm text-gray-700">
+                                    <span class="font-medium">Calendar:</span> @GetCalendarName(_targetCalendars, _selectedTargetCalendar)
+                                </p>
+                            </div>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(_errorMessage))
+                        {
+                            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mt-4">
+                                @_errorMessage
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <!-- Dialog Footer -->
+            <div class="flex justify-between mt-8 pt-4 border-t sticky bottom-0 bg-white">
+                <button @onclick="PreviousStep" 
+                        class="btn-secondary"
+                        disabled="@(_currentStep == 1)">
+                    Previous
+                </button>
+                
+                <div class="flex space-x-2">
+                    <button @onclick="CloseDialog" class="btn-secondary">
+                        Cancel
+                    </button>
+                    
+                    @if (_currentStep < 4)
+                    {
+                        <button @onclick="NextStep" 
+                                class="btn-primary"
+                                disabled="@(!CanProceedToNextStep())">
+                            Next
+                        </button>
+                    }
+                    else
+                    {
+                        <button @onclick="SaveBinding" 
+                                class="btn-primary"
+                                disabled="@(_isSaving || string.IsNullOrWhiteSpace(_bindingName))">
+                            @if (_isSaving)
+                            {
+                                <span class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
+                            }
+                            Save Binding
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
