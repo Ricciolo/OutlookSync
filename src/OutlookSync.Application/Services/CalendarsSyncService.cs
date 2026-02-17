@@ -1,34 +1,30 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using OutlookSync.Domain.Aggregates;
 using OutlookSync.Domain.Repositories;
 using OutlookSync.Domain.Services;
-using OutlookSync.Domain.ValueObjects;
 
 namespace OutlookSync.Application.Services;
 
 /// <summary>
-/// Service for synchronizing multiple calendars by copying events between them
+/// Service for synchronizing multiple calendars by copying events between them using CalendarBindings
 /// </summary>
 public class CalendarsSyncService(
+    ICalendarBindingRepository calendarBindingRepository,
     ICalendarRepository calendarRepository,
     ICredentialRepository credentialRepository,
     ICalendarEventRepositoryFactory calendarEventRepositoryFactory,
     IUnitOfWork unitOfWork,
     ILogger<CalendarsSyncService> logger) : ICalendarsSyncService
 {
-    private const string CopiedEventMarker = "[SYNCED]";
-
     public async Task<CalendarsSyncResult> SyncAllCalendarsAsync(CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Starting synchronization of all calendars");
+        logger.LogInformation("Starting synchronization using calendar bindings");
 
-        var calendars = calendarRepository.Query
-            .Where(c => c.IsEnabled)
-            .ToList();
+        var bindings = await calendarBindingRepository.GetEnabledAsync(cancellationToken);
 
-        if (calendars.Count == 0)
+        if (bindings.Count == 0)
         {
-            logger.LogWarning("No enabled calendars found for synchronization");
+            logger.LogWarning("No enabled calendar bindings found for synchronization");
             return CalendarsSyncResult.Success(0, 0);
         }
 
@@ -37,16 +33,11 @@ public class CalendarsSyncService(
         var totalEventsCopied = 0;
         var errors = new List<string>();
 
-        foreach (var calendar in calendars)
+        foreach (var binding in bindings)
         {
             try
             {
-                // Get target calendars for this source calendar (all enabled calendars except the current one)
-                var targetCalendars = calendars
-                    .Where(c => c.Id != calendar.Id)
-                    .ToList();
-
-                var result = await SyncCalendarAsync(calendar, targetCalendars, cancellationToken);
+                var result = await SyncBindingAsync(binding, cancellationToken);
                 
                 if (result.IsSuccess)
                 {
@@ -56,14 +47,14 @@ public class CalendarsSyncService(
                 else
                 {
                     failed++;
-                    errors.Add($"Calendar {calendar.Name}: {result.ErrorMessage}");
+                    errors.Add($"Binding {binding.Name}: {result.ErrorMessage}");
                 }
             }
             catch (Exception ex)
             {
                 failed++;
-                errors.Add($"Calendar {calendar.Name}: {ex.Message}");
-                logger.LogError(ex, "Error syncing calendar {CalendarId}", calendar.Id);
+                errors.Add($"Binding {binding.Name}: {ex.Message}");
+                logger.LogError(ex, "Error syncing binding {BindingId}", binding.Id);
             }
         }
 
@@ -81,201 +72,163 @@ public class CalendarsSyncService(
 
         logger.LogInformation(
             "Synchronization completed. Total: {Total}, Successful: {Successful}, Failed: {Failed}, Events copied: {EventsCopied}",
-            calendars.Count, successful, failed, totalEventsCopied);
+            bindings.Count, successful, failed, totalEventsCopied);
 
         return failed == 0
-            ? CalendarsSyncResult.Success(calendars.Count, totalEventsCopied)
-            : CalendarsSyncResult.Partial(calendars.Count, successful, failed, totalEventsCopied, errors);
+            ? CalendarsSyncResult.Success(bindings.Count, totalEventsCopied)
+            : CalendarsSyncResult.Partial(bindings.Count, successful, failed, totalEventsCopied, errors);
     }
 
-    private async Task<SyncResult> SyncCalendarAsync(
-        Calendar sourceCalendar, 
-        IReadOnlyList<Calendar> targetCalendars,
+    private async Task<SyncResult> SyncBindingAsync(
+        CalendarBinding binding,
         CancellationToken cancellationToken)
     {
-        var credential = await credentialRepository.GetByIdAsync(sourceCalendar.CredentialId, cancellationToken);
-        if (credential == null)
+        // Get source and target calendars
+        var sourceCalendar = await calendarRepository.GetByIdAsync(binding.SourceCalendarId, cancellationToken);
+        if (sourceCalendar == null)
         {
-            return SyncResult.Failure($"Credential not found for calendar {sourceCalendar.Name}");
+            return SyncResult.Failure($"Source calendar not found for binding {binding.Name}");
         }
 
-        if (!credential.IsTokenValid() || credential.StatusData == null || credential.StatusData.Length == 0)
+        var targetCalendar = await calendarRepository.GetByIdAsync(binding.TargetCalendarId, cancellationToken);
+        if (targetCalendar == null)
         {
-            return SyncResult.Failure($"Invalid token or missing status data for calendar {sourceCalendar.Name}");
+            return SyncResult.Failure($"Target calendar not found for binding {binding.Name}");
+        }
+
+        // Verify calendars are enabled
+        if (!sourceCalendar.IsEnabled || !targetCalendar.IsEnabled)
+        {
+            logger.LogWarning("Skipping binding {BindingName} - one or both calendars are disabled", binding.Name);
+            return SyncResult.Success(0);
+        }
+
+        var sourceCredential = await credentialRepository.GetByIdAsync(sourceCalendar.CredentialId, cancellationToken);
+        if (sourceCredential == null)
+        {
+            return SyncResult.Failure($"Source credential not found for binding {binding.Name}");
+        }
+
+        if (!sourceCredential.IsTokenValid() || sourceCredential.StatusData == null || sourceCredential.StatusData.Length == 0)
+        {
+            return SyncResult.Failure($"Invalid token or missing status data for source calendar in binding {binding.Name}");
+        }
+
+        var targetCredential = await credentialRepository.GetByIdAsync(targetCalendar.CredentialId, cancellationToken);
+        if (targetCredential == null)
+        {
+            return SyncResult.Failure($"Target credential not found for binding {binding.Name}");
+        }
+
+        if (!targetCredential.IsTokenValid() || targetCredential.StatusData == null || targetCredential.StatusData.Length == 0)
+        {
+            return SyncResult.Failure($"Invalid token or missing status data for target calendar in binding {binding.Name}");
         }
 
         try
         {
-            if (targetCalendars.Count == 0)
-            {
-                logger.LogInformation("No target calendars found for {CalendarName}", sourceCalendar.Name);
-                return SyncResult.Success(0);
-            }
-
-            var totalEventsCopied = 0;
-
-            // Create repository for this calendar with its credentials
-            // The factory will validate the credential and token
-            var sourceRepository = calendarEventRepositoryFactory.Create(credential, sourceCalendar);
-            
-            // Initialize repository to verify connectivity and access
+            // Create repositories for source and target
+            var sourceRepository = calendarEventRepositoryFactory.Create(sourceCredential, sourceCalendar);
             await sourceRepository.InitAsync(cancellationToken);
 
-            // Fetch events from local repository
+            var targetRepository = calendarEventRepositoryFactory.Create(targetCredential, targetCalendar);
+            await targetRepository.InitAsync(cancellationToken);
+
+            // Fetch events from source
             var sourceEvents = await sourceRepository.GetAllAsync(cancellationToken);
 
-            // Filter out events that are already copied (avoid re-copying)
+            // Filter out already-copied events
             var originalEvents = sourceEvents
                 .Where(e => !e.IsCopiedEvent)
                 .ToList();
 
             logger.LogInformation(
-                "Found {TotalEvents} events in {CalendarName}, {OriginalEvents} are original (not copied)",
+                "Found {TotalEvents} events in {SourceCalendar}, {OriginalEvents} are original (not copied)",
                 sourceEvents.Count, sourceCalendar.Name, originalEvents.Count);
 
-            // Copy events to each target calendar
-            foreach (var targetCalendar in targetCalendars)
+            // Filter events based on binding exclusion rules
+            var eventsToSync = originalEvents
+                .Where(e => EventFilteringService.ShouldSyncEvent(e, binding.Configuration))
+                .ToList();
+
+            logger.LogInformation(
+                "After filtering, {EventsToSync} events will be synchronized from {SourceCalendar} to {TargetCalendar}",
+                eventsToSync.Count, sourceCalendar.Name, targetCalendar.Name);
+
+            var eventsCopied = 0;
+
+            foreach (var sourceEvent in eventsToSync)
             {
                 try
                 {
-                    var targetCredential = await credentialRepository.GetByIdAsync(targetCalendar.CredentialId, cancellationToken);
-                    if (targetCredential == null)
+                    // Check if we've already copied this event
+                    var existingCopy = await targetRepository.FindCopiedEventAsync(
+                        sourceEvent,
+                        sourceCalendar,
+                        cancellationToken);
+
+                    if (existingCopy != null)
                     {
-                        logger.LogWarning("Credential not found for target calendar {CalendarName}", targetCalendar.Name);
+                        logger.LogDebug("Event {EventId} already copied to {TargetCalendar}", 
+                            sourceEvent.ExternalId, targetCalendar.Name);
                         continue;
                     }
 
-                    // The factory will validate the credential and token
-                    var targetRepository = calendarEventRepositoryFactory.Create(targetCredential, targetCalendar);
-                    
-                    // Initialize repository to verify connectivity and access
-                    await targetRepository.InitAsync(cancellationToken);
-
-                    totalEventsCopied += await CopyEventsToCalendarAsync(
-                        originalEvents,
+                    // Transform event based on binding configuration
+                    var newExternalId = $"copy_{Guid.NewGuid()}";
+                    var transformedEvent = EventFilteringService.TransformEvent(
+                        sourceEvent,
+                        binding,
                         sourceCalendar,
-                        targetCalendar,
-                        targetRepository,
-                        cancellationToken);
+                        newExternalId);
+
+                    // Add to target repository
+                    await targetRepository.AddAsync(transformedEvent, cancellationToken);
+
+                    eventsCopied++;
+
+                    logger.LogDebug(
+                        "Copied event {EventSubject} from {SourceCalendar} to {TargetCalendar}",
+                        sourceEvent.Subject, sourceCalendar.Name, targetCalendar.Name);
                 }
-                catch (InvalidOperationException ex)
+                catch (Exception ex)
                 {
-                    logger.LogWarning(ex, "Skipping target calendar {CalendarName} due to invalid credentials", targetCalendar.Name);
+                    logger.LogError(
+                        ex,
+                        "Error copying event {EventId} from {SourceCalendar} to {TargetCalendar}",
+                        sourceEvent.ExternalId, sourceCalendar.Name, targetCalendar.Name);
                 }
             }
 
-            sourceCalendar.RecordSuccessfulSync(totalEventsCopied);
-            await calendarRepository.UpdateAsync(sourceCalendar, cancellationToken);
+            binding.RecordSuccessfulSync(eventsCopied);
+            await calendarBindingRepository.UpdateAsync(binding, cancellationToken);
 
             logger.LogInformation(
-                "Successfully synced {EventCount} events from {CalendarName}",
-                totalEventsCopied, sourceCalendar.Name);
+                "Successfully synced {EventCount} events for binding {BindingName}",
+                eventsCopied, binding.Name);
 
-            return SyncResult.Success(totalEventsCopied);
+            return SyncResult.Success(eventsCopied);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error syncing calendar {CalendarId}", sourceCalendar.Id);
-            sourceCalendar.RecordFailedSync(ex.Message);
-            await calendarRepository.UpdateAsync(sourceCalendar, cancellationToken);
+            logger.LogError(ex, "Error syncing binding {BindingId}", binding.Id);
+            binding.RecordFailedSync(ex.Message);
+            await calendarBindingRepository.UpdateAsync(binding, cancellationToken);
             return SyncResult.Failure(ex.Message);
         }
         finally
         {
-            // Always update source credential as token cache may have been updated during sync
+            // Always update credentials as token cache may have been updated during sync
             try
             {
-                await credentialRepository.UpdateAsync(credential, cancellationToken);
-                logger.LogDebug("Credential updated for calendar {CalendarName}", sourceCalendar.Name);
+                await credentialRepository.UpdateAsync(sourceCredential, cancellationToken);
+                await credentialRepository.UpdateAsync(targetCredential, cancellationToken);
+                logger.LogDebug("Credentials updated for binding {BindingName}", binding.Name);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failed to update credential for calendar {CalendarId}", sourceCalendar.Id);
+                logger.LogError(ex, "Failed to update credentials for binding {BindingId}", binding.Id);
             }
         }
-    }
-
-    private async Task<int> CopyEventsToCalendarAsync(
-        IReadOnlyList<CalendarEvent> sourceEvents,
-        Calendar sourceCalendar,
-        Calendar targetCalendar,
-        ICalendarEventRepository targetRepository,
-        CancellationToken cancellationToken)
-    {
-        var eventsCopied = 0;
-
-        foreach (var sourceEvent in sourceEvents)
-        {
-            try
-            {
-                // Check if we've already copied this event
-                var existingCopy = await targetRepository.FindCopiedEventAsync(
-                    sourceEvent,
-                    sourceCalendar,
-                    cancellationToken);
-
-                if (existingCopy != null)
-                {
-                    logger.LogDebug("Event {EventId} already copied to {TargetCalendar}", 
-                        sourceEvent.ExternalId, targetCalendar.Name);
-                    continue;
-                }
-
-                // Create copied event
-                var copiedEvent = CreateCopiedEvent(sourceEvent, sourceCalendar, targetCalendar);
-
-                // For now, just track in repository
-                await targetRepository.AddAsync(copiedEvent, cancellationToken);
-
-                eventsCopied++;
-
-                logger.LogDebug(
-                    "Copied event {EventSubject} from {SourceCalendar} to {TargetCalendar}",
-                    sourceEvent.Subject, sourceCalendar.Name, targetCalendar.Name);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(
-                    ex,
-                    "Error copying event {EventId} from {SourceCalendar} to {TargetCalendar}",
-                    sourceEvent.ExternalId, sourceCalendar.Name, targetCalendar.Name);
-            }
-        }
-
-        return eventsCopied;
-    }
-
-    private static CalendarEvent CreateCopiedEvent(
-        CalendarEvent sourceEvent,
-        Calendar sourceCalendar,
-        Calendar targetCalendar)
-    {
-        var config = targetCalendar.Configuration;
-        var fieldSelection = config.FieldSelection;
-
-        // Add marker to subject to indicate it's a copied event
-        var subject = fieldSelection.Subject
-            ? $"{CopiedEventMarker} {sourceEvent.Subject}"
-            : $"{CopiedEventMarker} Event from {sourceCalendar.Name}";
-
-        // Generate new external ID for the copy
-        var newExternalId = $"copy_{Guid.NewGuid()}";
-
-        return new CalendarEvent
-        {
-            Id = Guid.NewGuid(),
-            CalendarId = targetCalendar.Id,
-            ExternalId = newExternalId,
-            Subject = subject,
-            Start = fieldSelection.StartTime ? sourceEvent.Start : DateTime.UtcNow,
-            End = fieldSelection.EndTime ? sourceEvent.End : DateTime.UtcNow.AddHours(1),
-            Location = fieldSelection.Location ? sourceEvent.Location : null,
-            Body = fieldSelection.Body ? sourceEvent.Body : null,
-            Organizer = fieldSelection.Organizer ? sourceEvent.Organizer : null,
-            IsAllDay = fieldSelection.IsAllDay && sourceEvent.IsAllDay,
-            IsRecurring = fieldSelection.Recurrence && sourceEvent.IsRecurring,
-            OriginalEventId = sourceEvent.ExternalId,
-            SourceCalendarId = sourceCalendar.Id
-        };
     }
 }
