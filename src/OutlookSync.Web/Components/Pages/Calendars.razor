@@ -1,6 +1,7 @@
 @page "/calendars"
 @rendermode InteractiveServer
 @inject OutlookSync.Domain.Repositories.ICalendarRepository CalendarRepository
+@inject OutlookSync.Domain.Repositories.IUnitOfWork UnitOfWork
 
 <PageTitle>Calendars - OutlookSync</PageTitle>
 
@@ -70,6 +71,10 @@
                                     @calendar.Configuration.StartDate.ToString("yyyy-MM-dd")
                                 </p>
                                 <p class="text-gray-700">
+                                    <span class="font-medium">Sync Days Forward:</span> 
+                                    @calendar.Configuration.SyncDaysForward days
+                                </p>
+                                <p class="text-gray-700">
                                     <span class="font-medium">Privacy:</span> 
                                     @(calendar.Configuration.IsPrivate ? "Private" : "Public")
                                 </p>
@@ -100,4 +105,7 @@
 
 <!-- Add Calendar Dialog -->
 <AddCalendarDialog @ref="_addCalendarDialog" OnCalendarAdded="OnCalendarAddedAsync" />
+
+<!-- Edit Calendar Dialog -->
+<EditCalendarDialog @ref="_editCalendarDialog" OnCalendarUpdated="OnCalendarUpdatedAsync" />
 

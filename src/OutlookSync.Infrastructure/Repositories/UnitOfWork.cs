@@ -12,8 +12,11 @@ public class UnitOfWork(OutlookSyncDbContext context) : IUnitOfWork
     private readonly OutlookSyncDbContext _context = context;
     private IDbContextTransaction? _transaction;
 
-    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>
-        await _context.SaveChangesAsync(cancellationToken);
+    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        _context.ChangeTracker.DetectChanges();
+        return await _context.SaveChangesAsync(cancellationToken);
+    }
 
     public async Task BeginTransactionAsync(CancellationToken cancellationToken = default) =>
         _transaction = await _context.Database.BeginTransactionAsync(cancellationToken);

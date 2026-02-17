@@ -8,10 +8,16 @@ namespace OutlookSync.Domain.Aggregates;
 /// </summary>
 public class Calendar : Entity, IAggregateRoot
 {
+    private string _name = null!;
+    
     /// <summary>
     /// Gets the name of the calendar.
     /// </summary>
-    public required string Name { get; init; }
+    public required string Name 
+    { 
+        get => _name;
+        init => _name = value;
+    }
     
     /// <summary>
     /// Gets the external identifier of the calendar from the source system.
@@ -27,11 +33,6 @@ public class Calendar : Entity, IAggregateRoot
     /// Gets a value indicating whether the calendar is enabled for synchronization.
     /// </summary>
     public bool IsEnabled { get; private set; } = true;
-    
-    /// <summary>
-    /// Gets or sets the number of days forward to synchronize.
-    /// </summary>
-    public int SyncDaysForward { get; set; } = 30;
     
     private SyncConfiguration _configuration = null!;
 
@@ -92,6 +93,19 @@ public class Calendar : Entity, IAggregateRoot
         ArgumentNullException.ThrowIfNull(configuration, nameof(configuration));
         
         _configuration = configuration;
+        MarkAsUpdated();
+    }
+    
+    /// <summary>
+    /// Renames the calendar.
+    /// </summary>
+    /// <param name="newName">The new name for the calendar.</param>
+    /// <exception cref="ArgumentException">Thrown when newName is null, empty, or whitespace.</exception>
+    public void Rename(string newName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(newName, nameof(newName));
+        
+        _name = newName;
         MarkAsUpdated();
     }
     

@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
-using OutlookSync.Domain.Repositories;
 using OutlookSync.Domain.Services;
 
 namespace OutlookSync.Web.Components.Modals;
@@ -44,30 +43,6 @@ public partial class DeviceFlowSetupModal : ComponentBase, IAsyncDisposable
     /// </summary>
     [Parameter]
     public EventCallback OnComplete { get; set; }
-
-    /// <summary>
-    /// Gets or sets the credentials service
-    /// </summary>
-    [Inject]
-    public required ICredentialsService CredentialsService { get; set; }
-
-    /// <summary>
-    /// Gets or sets the credential repository
-    /// </summary>
-    [Inject]
-    public required ICredentialRepository CredentialRepository { get; set; }
-
-    /// <summary>
-    /// Gets or sets the unit of work
-    /// </summary>
-    [Inject]
-    public required IUnitOfWork UnitOfWork { get; set; }
-
-    /// <summary>
-    /// Gets or sets the JavaScript runtime
-    /// </summary>
-    [Inject]
-    public required IJSRuntime JSRuntime { get; set; }
 
     /// <inheritdoc/>
     protected override async Task OnAfterRenderAsync(bool firstRender)

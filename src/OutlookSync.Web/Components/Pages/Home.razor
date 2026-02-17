@@ -16,7 +16,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-medium text-gray-600">Active Calendars</p>
-                    <p class="text-3xl font-bold text-gray-900 mt-2">0</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2">@ActiveCalendarsCount</p>
                 </div>
                 <div class="bg-blue-100 p-3 rounded-full">
                     <svg class="w-8 h-8 text-outlook-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -30,7 +30,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-medium text-gray-600">Credentials</p>
-                    <p class="text-3xl font-bold text-gray-900 mt-2">0</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2">@CredentialsCount</p>
                 </div>
                 <div class="bg-green-100 p-3 rounded-full">
                     <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -44,7 +44,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-medium text-gray-600">Last Sync</p>
-                    <p class="text-3xl font-bold text-gray-900 mt-2">-</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2">@LastSyncDisplay</p>
                 </div>
                 <div class="bg-purple-100 p-3 rounded-full">
                     <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -75,18 +75,8 @@
                 </div>
                 <div>
                     <h3 class="font-medium text-gray-900">Add Calendars</h3>
-                    <p class="text-sm text-gray-600">Select the calendars you want to synchronize</p>
+                    <p class="text-sm text-gray-600">Select the calendars you want to synchronize and configure their settings</p>
                     <a href="/calendars" class="text-sm text-outlook-blue hover:underline mt-1 inline-block">Manage Calendars →</a>
-                </div>
-            </div>
-            <div class="flex items-start space-x-3">
-                <div class="bg-blue-100 text-outlook-blue rounded-full p-2">
-                    <span class="text-sm font-bold">3</span>
-                </div>
-                <div>
-                    <h3 class="font-medium text-gray-900">Configure Sync Settings</h3>
-                    <p class="text-sm text-gray-600">Customize privacy, field selection, and sync intervals</p>
-                    <a href="/settings" class="text-sm text-outlook-blue hover:underline mt-1 inline-block">Configure Settings →</a>
                 </div>
             </div>
         </div>

@@ -1,4 +1,8 @@
 @using OutlookSync.Domain.Services
+@inject OutlookSync.Domain.Services.ICredentialsService CredentialsService
+@inject OutlookSync.Domain.Repositories.ICredentialRepository CredentialRepository
+@inject OutlookSync.Domain.Repositories.IUnitOfWork UnitOfWork
+@inject Microsoft.JSInterop.IJSRuntime JSRuntime
 
 @if (IsVisible)
 {

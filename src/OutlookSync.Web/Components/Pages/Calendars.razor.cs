@@ -11,6 +11,7 @@ public partial class Calendars
     private List<Calendar>? _calendars;
     private bool _isLoading = true;
     private AddCalendarDialog? _addCalendarDialog;
+    private EditCalendarDialog? _editCalendarDialog;
 
     /// <inheritdoc/>
     protected override async Task OnInitializedAsync()
@@ -51,6 +52,8 @@ public partial class Calendars
         }
         
         await CalendarRepository.UpdateAsync(calendar);
+        await UnitOfWork.SaveChangesAsync();
+        
         await LoadCalendarsAsync();
     }
 
@@ -59,12 +62,16 @@ public partial class Calendars
         await LoadCalendarsAsync();
     }
 
-#pragma warning disable CA1822 // Mark members as static - Will be implemented with instance access
-#pragma warning disable IDE0060 // Remove unused parameter - Parameter will be used when implemented
-    private void EditCalendar(Calendar calendar)
+    private async Task OnCalendarUpdatedAsync()
     {
-        // TODO: Navigate to edit calendar page or show modal
+        await LoadCalendarsAsync();
     }
-#pragma warning restore IDE0060
-#pragma warning restore CA1822
+
+    private async Task EditCalendar(Calendar calendar)
+    {
+        if (_editCalendarDialog != null)
+        {
+            await _editCalendarDialog.OpenAsync(calendar);
+        }
+    }
 }

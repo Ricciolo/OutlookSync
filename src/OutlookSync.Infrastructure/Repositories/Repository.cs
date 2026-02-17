@@ -13,7 +13,7 @@ public class Repository<T>(OutlookSyncDbContext context) : IRepository<T> where 
     protected readonly OutlookSyncDbContext _context = context;
 
     /// <inheritdoc />
-    public virtual IQueryable<T> Query => _context.Set<T>().AsQueryable().AsNoTrackingWithIdentityResolution();
+    public virtual IQueryable<T> Query => _context.Set<T>();
 
     /// <inheritdoc />
     public virtual async Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
@@ -26,14 +26,14 @@ public class Repository<T>(OutlookSyncDbContext context) : IRepository<T> where 
     /// <inheritdoc />
     public virtual Task UpdateAsync(T entity, CancellationToken cancellationToken = default)
     {
-        _context.Set<T>().Update(entity);
+        _context.Entry(entity).State = EntityState.Modified;
         return Task.CompletedTask;
     }
 
     /// <inheritdoc />
     public virtual Task DeleteAsync(T entity, CancellationToken cancellationToken = default)
     {
-        _context.Set<T>().Remove(entity);
+        _context.Entry(entity).State = EntityState.Deleted;
         return Task.CompletedTask;
     }
 }

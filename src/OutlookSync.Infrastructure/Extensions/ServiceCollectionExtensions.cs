@@ -31,12 +31,11 @@ public static class ServiceCollectionExtensions
                 ?? "Data Source=outlooksync.db"));
 
         // Repositories
-        services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
-        services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddTransient<IUnitOfWork, UnitOfWork>();
         
         // Specific repositories
-        services.AddScoped<Domain.Repositories.ICalendarRepository, CalendarRepository>();
-        services.AddScoped<Domain.Repositories.ICredentialRepository, CredentialRepository>();
+        services.AddTransient<Domain.Repositories.ICalendarRepository, CalendarRepository>();
+        services.AddTransient<Domain.Repositories.ICredentialRepository, CredentialRepository>();
         
         // Calendar Event Repository Factory
         services.AddSingleton<ICalendarEventRepositoryFactory, CalendarEventRepositoryFactory>();

@@ -1,6 +1,12 @@
 @rendermode InteractiveServer
 @using OutlookSync.Domain.Aggregates
 @using OutlookSync.Domain.ValueObjects
+@using OutlookSync.Web.Components.Shared
+@inject OutlookSync.Domain.Repositories.ICredentialRepository CredentialRepository
+@inject OutlookSync.Domain.Repositories.ICalendarRepository CalendarRepository
+@inject OutlookSync.Domain.Repositories.ICalendarEventRepositoryFactory CalendarEventRepositoryFactory
+@inject OutlookSync.Domain.Repositories.IUnitOfWork UnitOfWork
+@inject Microsoft.Extensions.Logging.ILogger<AddCalendarDialog> Logger
 
 @if (_isDialogOpen)
 {
@@ -145,43 +151,7 @@
                 }
                 else if (_currentStep == 3)
                 {
-                    <div class="space-y-6">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Calendar Name</label>
-                            <input type="text" @bind="_calendarName" 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-outlook-blue"
-                                   placeholder="Enter a friendly name for this calendar" />
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Sync Interval</label>
-                            <select @bind="_selectedInterval" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-outlook-blue">
-                                <option value="15">Every 15 minutes</option>
-                                <option value="30" selected>Every 30 minutes</option>
-                                <option value="60">Every hour</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
-                            <input type="date" @bind="_startDate" 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-outlook-blue" />
-                        </div>
-
-                        <div class="flex items-center">
-                            <input type="checkbox" id="isPrivate" @bind="_isPrivate" 
-                                   class="w-4 h-4 text-outlook-blue border-gray-300 rounded focus:ring-outlook-blue" />
-                            <label for="isPrivate" class="ml-2 text-sm text-gray-700">Mark events as private</label>
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Field Selection</label>
-                            <select @bind="_fieldSelectionType" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-outlook-blue">
-                                <option value="all">All Fields</option>
-                                <option value="essential">Essential Only</option>
-                            </select>
-                        </div>
-                    </div>
+                    <CalendarSettingsForm Settings="_settings" />
                 }
             </div>
 
@@ -210,7 +180,7 @@
                     {
                         <button @onclick="SaveCalendar" 
                                 class="btn-primary"
-                                disabled="@(_isSaving || string.IsNullOrWhiteSpace(_calendarName))">
+                                disabled="@(_isSaving || string.IsNullOrWhiteSpace(_settings.CalendarName))">
                             @if (_isSaving)
                             {
                                 <span>Saving...</span>

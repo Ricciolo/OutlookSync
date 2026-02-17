@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
 using OutlookSync.Domain.Aggregates;
-using OutlookSync.Domain.Repositories;
 using OutlookSync.Domain.ValueObjects;
+using OutlookSync.Web.Components.Shared;
 
 namespace OutlookSync.Web.Components.Pages;
 
@@ -26,27 +26,8 @@ public partial class AddCalendarDialog
     private string? _errorMessage;
     
     // Step 3: Configuration
-    private string _calendarName = string.Empty;
-    private int _selectedInterval = 30;
-    private DateTime _startDate = DateTime.Today;
-    private bool _isPrivate;
-    private string _fieldSelectionType = "all";
+    private CalendarSettingsModel _settings = new();
     private bool _isSaving;
-
-    [Inject]
-    private ICredentialRepository CredentialRepository { get; set; } = default!;
-
-    [Inject]
-    private ICalendarRepository CalendarRepository { get; set; } = default!;
-
-    [Inject]
-    private ICalendarEventRepositoryFactory CalendarEventRepositoryFactory { get; set; } = default!;
-
-    [Inject]
-    private IUnitOfWork UnitOfWork { get; set; } = default!;
-
-    [Inject]
-    private Microsoft.Extensions.Logging.ILogger<AddCalendarDialog> Logger { get; set; } = default!;
 
     [Parameter]
     public EventCallback OnCalendarAdded { get; set; }
@@ -81,11 +62,7 @@ public partial class AddCalendarDialog
         _selectedCredential = null;
         _selectedCalendar = null;
         _availableCalendars = null;
-        _calendarName = string.Empty;
-        _selectedInterval = 30;
-        _startDate = DateTime.Today;
-        _isPrivate = false;
-        _fieldSelectionType = "all";
+        _settings = new CalendarSettingsModel();
         _errorMessage = null;
     }
 
@@ -163,7 +140,7 @@ public partial class AddCalendarDialog
     private void SelectCalendar(AvailableCalendar calendar)
     {
         _selectedCalendar = calendar;
-        _calendarName = calendar.Name;
+        _settings.CalendarName = calendar.Name;
         StateHasChanged();
     }
 
@@ -217,7 +194,7 @@ public partial class AddCalendarDialog
     /// </summary>
     private async Task SaveCalendar()
     {
-        if (_selectedCredential == null || _selectedCalendar == null || string.IsNullOrWhiteSpace(_calendarName))
+        if (_selectedCredential == null || _selectedCalendar == null || string.IsNullOrWhiteSpace(_settings.CalendarName))
         {
             return;
         }
@@ -225,28 +202,29 @@ public partial class AddCalendarDialog
         _isSaving = true;
         try
         {
-            var syncInterval = _selectedInterval switch
+            var syncInterval = _settings.SelectedInterval switch
             {
                 15 => SyncInterval.Every15Minutes(),
                 30 => SyncInterval.Every30Minutes(),
                 60 => SyncInterval.Hourly(),
-                _ => SyncInterval.Custom(_selectedInterval)
+                _ => SyncInterval.Custom(_settings.SelectedInterval)
             };
 
-            var fieldSelection = _fieldSelectionType == "all" 
+            var fieldSelection = _settings.FieldSelectionType == "all" 
                 ? CalendarFieldSelection.All() 
                 : CalendarFieldSelection.Essential();
 
             var calendar = new Calendar
             {
-                Name = _calendarName,
+                Name = _settings.CalendarName,
                 ExternalId = _selectedCalendar.ExternalId,
                 CredentialId = _selectedCredential.Id,
                 Configuration = new SyncConfiguration
                 {
                     Interval = syncInterval,
-                    StartDate = _startDate,
-                    IsPrivate = _isPrivate,
+                    StartDate = _settings.StartDate,
+                    SyncDaysForward = _settings.SyncDaysForward,
+                    IsPrivate = _settings.IsPrivate,
                     FieldSelection = fieldSelection
                 }
             };

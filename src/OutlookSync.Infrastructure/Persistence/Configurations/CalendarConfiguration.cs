@@ -22,8 +22,6 @@ public class CalendarConfiguration : IEntityTypeConfiguration<Calendar>
         
         builder.Property(c => c.IsEnabled).IsRequired();
         
-        builder.Property(c => c.SyncDaysForward).IsRequired();
-        
         builder.OwnsOne(c => c.Configuration, config =>
         {
             config.OwnsOne(cfg => cfg.Interval, interval =>
@@ -34,6 +32,7 @@ public class CalendarConfiguration : IEntityTypeConfiguration<Calendar>
             
             config.Property(cfg => cfg.StartDate).IsRequired();
             config.Property(cfg => cfg.IsPrivate).IsRequired();
+            config.Property(cfg => cfg.SyncDaysForward).IsRequired().HasDefaultValue(30);
             
             config.OwnsOne(cfg => cfg.FieldSelection, fields =>
             {
