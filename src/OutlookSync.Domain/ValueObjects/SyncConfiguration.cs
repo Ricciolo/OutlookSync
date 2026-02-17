@@ -12,6 +12,11 @@ public record SyncConfiguration
     public required bool IsPrivate { get; init; }
     
     public required CalendarFieldSelection FieldSelection { get; init; }
+    
+    /// <summary>
+    /// Gets the number of days forward to synchronize
+    /// </summary>
+    public int SyncDaysForward { get; init; } = 30;
 }
 
 /// <summary>

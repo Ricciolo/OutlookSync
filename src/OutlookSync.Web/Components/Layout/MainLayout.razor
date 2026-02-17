@@ -1,0 +1,50 @@
+﻿@inherits LayoutComponentBase
+
+<div class="min-h-screen flex">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white border-r border-gray-200">
+        <div class="flex flex-col h-full">
+            <!-- Logo/Header -->
+            <div class="p-6 border-b border-gray-200">
+                <h1 class="text-2xl font-bold text-outlook-blue">OutlookSync</h1>
+                <p class="text-sm text-gray-500 mt-1">Calendar Synchronization</p>
+            </div>
+            
+            <!-- Navigation -->
+            <NavMenu />
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col">
+        <!-- Top Bar -->
+        <header class="bg-white border-b border-gray-200 px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <h2 class="text-xl font-semibold text-gray-800">@PageTitle</h2>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="https://learn.microsoft.com/aspnet/core/" target="_blank" 
+                       class="text-sm text-gray-600 hover:text-outlook-blue">
+                        Documentation
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        <!-- Page Content -->
+        <main class="flex-1 overflow-auto p-6">
+            <article class="max-w-7xl mx-auto">
+                @Body
+            </article>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-white border-t border-gray-200 px-6 py-4">
+            <div class="text-center text-sm text-gray-500">
+                OutlookSync &copy; 2026 - Built with Blazor SSR & Tailwind CSS
+            </div>
+        </footer>
+    </div>
+</div>
+

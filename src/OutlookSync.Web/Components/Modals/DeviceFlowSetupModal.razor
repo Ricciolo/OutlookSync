@@ -1,0 +1,212 @@
+@using OutlookSync.Domain.Services
+@inject OutlookSync.Domain.Services.ICredentialsService CredentialsService
+@inject OutlookSync.Domain.Repositories.ICredentialRepository CredentialRepository
+@inject OutlookSync.Domain.Repositories.IUnitOfWork UnitOfWork
+@inject Microsoft.JSInterop.IJSRuntime JSRuntime
+
+@if (IsVisible)
+{
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" @onclick="OnCancel">
+        <div class="relative top-20 mx-auto p-8 border w-full max-w-2xl shadow-lg rounded-lg bg-white" @onclick:stopPropagation="true">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold text-gray-900">Configure New Credential</h2>
+                <button @onclick="OnCancel" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <div class="flex items-start">
+                        <svg class="w-5 h-5 text-red-600 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                        </svg>
+                        <div class="flex-1">
+                            <p class="text-sm font-medium text-red-800">@_errorMessage</p>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Step 1: Friendly Name -->
+            @if (_currentStep == DeviceFlowStep.FriendlyName)
+            {
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Friendly Name
+                        </label>
+                        <input type="text" 
+                               @bind="_friendlyName" 
+                               @bind:event="oninput"
+                               placeholder="e.g., My Work Account"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-outlook-blue focus:border-transparent" />
+                        <p class="mt-2 text-sm text-gray-600">
+                            Enter a name to identify this credential (e.g., "Personal Account", "Work Email").
+                        </p>
+                    </div>
+
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button @onclick="OnCancel" class="btn-secondary">
+                            Cancel
+                        </button>
+                        <button @onclick="StartDeviceFlowAsync" 
+                                disabled="@(string.IsNullOrWhiteSpace(_friendlyName) || _isProcessing)"
+                                class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed">
+                            @if (_isProcessing)
+                            {
+                                <span class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
+                            }
+                            Next
+                        </button>
+                    </div>
+                </div>
+            }
+
+            <!-- Step 2: Authentication Instructions -->
+            @if (_currentStep == DeviceFlowStep.WaitingForAuth && _deviceCodeResult != null)
+            {
+                <div class="space-y-6">
+                    <!-- Info Box: Outlook Trick Explanation -->
+                    <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div class="flex items-start">
+                            <svg class="w-5 h-5 text-blue-600 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                            </svg>
+                            <div class="flex-1">
+                                <h4 class="text-sm font-semibold text-blue-900 mb-1">Authentication Info</h4>
+                                <p class="text-sm text-blue-800">
+                                    You'll be authenticating using the official Microsoft Outlook mobile app client ID. 
+                                    This doesn't require any special setup or admin approval.
+                                </p>
+                                <p class="text-sm text-blue-800 mt-2">
+                                    <strong>Important:</strong> The authentication page might show "Microsoft Outlook" or 
+                                    "Outlook Mobile" as the app name. This is expected! You're using Outlook's official 
+                                    credentials, which allows this app to work immediately without needing to register 
+                                    your own Azure AD app. You're simply granting this app the same permissions that 
+                                    Outlook mobile uses. This is a safe and common practice for personal projects.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Authentication Code Display -->
+                    <div class="bg-gradient-to-br from-outlook-blue to-blue-600 text-white rounded-lg p-6 text-center">
+                        <p class="text-sm font-medium mb-2 opacity-90">Your Code</p>
+                        <div class="text-4xl font-bold tracking-wider mb-4 font-mono">
+                            @_deviceCodeResult.UserCode
+                        </div>
+                        <button @onclick="CopyCodeToClipboardAsync" class="inline-flex items-center px-4 py-2 bg-white text-outlook-blue rounded-lg hover:bg-gray-100 transition-colors">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                            @_copyButtonText
+                        </button>
+                    </div>
+
+                    <!-- Step-by-Step Instructions -->
+                    <div class="space-y-4">
+                        <h3 class="text-lg font-semibold text-gray-900">Follow these steps:</h3>
+                            
+                        <div class="space-y-3">
+                            <div class="flex items-start space-x-3">
+                                <div class="flex-shrink-0 w-8 h-8 bg-outlook-blue text-white rounded-full flex items-center justify-center font-semibold">
+                                    1
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-sm text-gray-700">
+                                        <strong>Copy the code</strong> above (click the button or select and copy)
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start space-x-3">
+                                <div class="flex-shrink-0 w-8 h-8 bg-outlook-blue text-white rounded-full flex items-center justify-center font-semibold">
+                                    2
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-sm text-gray-700 mb-2">
+                                        <strong>Open the authentication page:</strong>
+                                    </p>
+                                    <a href="@_deviceCodeResult.VerificationUrl" 
+                                       target="_blank" 
+                                       class="inline-flex items-center px-4 py-2 bg-outlook-blue text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                        Open Microsoft Login
+                                        <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                        </svg>
+                                    </a>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start space-x-3">
+                                <div class="flex-shrink-0 w-8 h-8 bg-outlook-blue text-white rounded-full flex items-center justify-center font-semibold">
+                                    3
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-sm text-gray-700">
+                                        <strong>Paste the code</strong> in the page that opens and follow the prompts
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start space-x-3">
+                                <div class="flex-shrink-0 w-8 h-8 bg-outlook-blue text-white rounded-full flex items-center justify-center font-semibold">
+                                    4
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-sm text-gray-700">
+                                        <strong>Wait here</strong> - this dialog will automatically close when authentication is complete
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Waiting Status -->
+                    <div class="border-t pt-6">
+                        <div class="flex items-center justify-center space-x-3">
+                            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-outlook-blue"></div>
+                            <p class="text-gray-700">Waiting for authentication...</p>
+                        </div>
+                        @if (_deviceCodeResult.ExpiresOn.HasValue)
+                        {
+                            <p class="text-center text-sm text-gray-500 mt-2">
+                                Code expires at @_deviceCodeResult.ExpiresOn.Value.ToLocalTime().ToString("HH:mm:ss")
+                            </p>
+                        }
+                    </div>
+
+                    <div class="flex justify-end pt-4">
+                        <button @onclick="OnCancel" class="btn-secondary">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            }
+
+            <!-- Step 3: Success -->
+            @if (_currentStep == DeviceFlowStep.Success)
+            {
+                <div class="text-center py-8">
+                    <div class="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+                        <svg class="w-8 h-8 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-2">Authentication Successful!</h3>
+                    <p class="text-gray-600 mb-6">
+                        Your credential "@_friendlyName" has been configured and saved.
+                    </p>
+                    <button @onclick="OnComplete" class="btn-primary">
+                        Done
+                    </button>
+                </div>
+            }
+        </div>
+    </div>
+}

@@ -50,7 +50,7 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
 
     private static Credential CreateTestCredential()
     {
-        var credential = new Credential();
+        var credential = new Credential { FriendlyName = "Test Account" };
 
         // NOTE: In real scenarios, StatusData should contain a valid MSAL token cache
         // For testing, you need to authenticate interactively first and save the token cache
@@ -66,7 +66,7 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
 
     private static Credential CreateCredentialWithoutCache()
     {
-        return new Credential(); // No StatusData - should fail initialization
+        return new Credential { FriendlyName = "Test Account Without Cache" }; // No StatusData - should fail initialization
     }
 
     [Fact]
@@ -152,6 +152,58 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
         // Assert
         Assert.NotNull(events);
         Assert.IsAssignableFrom<IReadOnlyList<DomainCalendarEvent>>(events);
+    }
+
+    [Fact]
+    public async Task GetAvailableCalendarsAsync_ShouldThrow_WhenNotInitialized()
+    {
+        // Arrange
+        var calendar = CreateTestCalendar();
+        var credential = CreateTestCredential();
+
+        var repository = new ExchangeCalendarEventRepository(
+            calendar,
+            credential,
+            _logger);
+
+        // Act & Assert - calling GetAvailableCalendarsAsync without InitAsync should throw
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await repository.GetAvailableCalendarsAsync());
+
+        Assert.Contains("has not been initialized", exception.Message);
+    }
+
+    [Fact]
+    public async Task GetAvailableCalendarsAsync_ShouldReturnCalendars_WhenValidCredentials()
+    {
+        // Arrange
+        ValidateConfiguration();
+
+        var calendar = CreateTestCalendar();
+        var credential = CreateTestCredential();
+
+        var repository = new ExchangeCalendarEventRepository(
+            calendar,
+            credential,
+            _logger);
+
+        // Act
+        await repository.InitAsync();
+        var calendars = await repository.GetAvailableCalendarsAsync();
+
+        // Assert
+        Assert.NotNull(calendars);
+        Assert.IsAssignableFrom<IReadOnlyList<AvailableCalendar>>(calendars);
+        Assert.NotEmpty(calendars);
+        
+        // Verify each calendar has required properties
+        foreach (var cal in calendars)
+        {
+            Assert.NotNull(cal.ExternalId);
+            Assert.NotEmpty(cal.ExternalId);
+            Assert.NotNull(cal.Name);
+            Assert.NotEmpty(cal.Name);
+        }
     }
 
     [Fact]
@@ -378,7 +430,7 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
     {
         // Arrange
         var calendar = CreateTestCalendar();
-        var credential = new Credential();
+        var credential = new Credential { FriendlyName = "Invalid Credential" };
         // No status data set, TokenStatus will be NotAcquired
 
         // Act & Assert - Constructor should not throw, validation happens in factory
@@ -387,6 +439,7 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
                 calendar,
                 credential,
                 _logger));
+        
         
         Assert.Null(exception);
     }

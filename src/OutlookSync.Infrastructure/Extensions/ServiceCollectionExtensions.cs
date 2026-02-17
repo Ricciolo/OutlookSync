@@ -2,8 +2,10 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OutlookSync.Domain.Repositories;
+using OutlookSync.Domain.Services;
 using OutlookSync.Infrastructure.Persistence;
 using OutlookSync.Infrastructure.Repositories;
+using OutlookSync.Infrastructure.Services;
 
 namespace OutlookSync.Infrastructure.Extensions;
 
@@ -29,11 +31,17 @@ public static class ServiceCollectionExtensions
                 ?? "Data Source=outlooksync.db"));
 
         // Repositories
-        services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
-        services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddTransient<IUnitOfWork, UnitOfWork>();
+        
+        // Specific repositories
+        services.AddTransient<Domain.Repositories.ICalendarRepository, CalendarRepository>();
+        services.AddTransient<Domain.Repositories.ICredentialRepository, CredentialRepository>();
         
         // Calendar Event Repository Factory
         services.AddSingleton<ICalendarEventRepositoryFactory, CalendarEventRepositoryFactory>();
+        
+        // Domain Services
+        services.AddTransient<ICredentialsService, CredentialsService>();
 
         return services;
     }

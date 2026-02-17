@@ -76,7 +76,7 @@ public class CalendarsSyncServiceTests
             .ReturnsAsync([]);
 
         _mockCalendarEventRepositoryFactory
-            .Setup(f => f.Create(It.IsAny<Calendar>(), It.IsAny<Credential>()))
+            .Setup(f => f.Create(It.IsAny<Credential>(), It.IsAny<Calendar>()))
             .Returns(mockEventRepository.Object);
 
         // Act
@@ -119,10 +119,10 @@ public class CalendarsSyncServiceTests
         var mockEventRepo2 = CreateMockEventRepository([event3]);
 
         _mockCalendarEventRepositoryFactory
-            .Setup(f => f.Create(calendar1, credential1))
+            .Setup(f => f.Create(credential1, calendar1))
             .Returns(mockEventRepo1.Object);
         _mockCalendarEventRepositoryFactory
-            .Setup(f => f.Create(calendar2, credential2))
+            .Setup(f => f.Create(credential2, calendar2))
             .Returns(mockEventRepo2.Object);
 
         // Act
@@ -166,7 +166,7 @@ public class CalendarsSyncServiceTests
 
         var mockEventRepo2 = CreateMockEventRepository([]);
         _mockCalendarEventRepositoryFactory
-            .Setup(f => f.Create(calendar2, credential2))
+            .Setup(f => f.Create(credential2, calendar2))
             .Returns(mockEventRepo2.Object);
 
         // Act
@@ -244,10 +244,10 @@ public class CalendarsSyncServiceTests
         var mockEventRepo2 = CreateMockEventRepository([]);
 
         _mockCalendarEventRepositoryFactory
-            .Setup(f => f.Create(calendar1, credential1))
+            .Setup(f => f.Create(credential1, calendar1))
             .Returns(mockEventRepo1.Object);
         _mockCalendarEventRepositoryFactory
-            .Setup(f => f.Create(calendar2, credential2))
+            .Setup(f => f.Create(credential2, calendar2))
             .Returns(mockEventRepo2.Object);
 
         // Act
@@ -295,10 +295,10 @@ public class CalendarsSyncServiceTests
             .ReturnsAsync(existingCopy);
 
         _mockCalendarEventRepositoryFactory
-            .Setup(f => f.Create(calendar1, credential1))
+            .Setup(f => f.Create(credential1, calendar1))
             .Returns(mockEventRepo1.Object);
         _mockCalendarEventRepositoryFactory
-            .Setup(f => f.Create(calendar2, credential2))
+            .Setup(f => f.Create(credential2, calendar2))
             .Returns(mockEventRepo2.Object);
 
         // Act
@@ -328,7 +328,7 @@ public class CalendarsSyncServiceTests
 
         var mockEventRepo = CreateMockEventRepository([]);
         _mockCalendarEventRepositoryFactory
-            .Setup(f => f.Create(calendar, credential))
+            .Setup(f => f.Create(credential, calendar))
             .Returns(mockEventRepo.Object);
 
         // Act
@@ -353,7 +353,7 @@ public class CalendarsSyncServiceTests
 
         var mockEventRepo = CreateMockEventRepository([]);
         _mockCalendarEventRepositoryFactory
-            .Setup(f => f.Create(calendar, credential))
+            .Setup(f => f.Create(credential, calendar))
             .Returns(mockEventRepo.Object);
 
         _mockUnitOfWork
@@ -388,10 +388,10 @@ public class CalendarsSyncServiceTests
         var mockEventRepo2 = CreateMockEventRepository([]);
         
         _mockCalendarEventRepositoryFactory
-            .Setup(f => f.Create(calendar1, credential1))
+            .Setup(f => f.Create(credential1, calendar1))
             .Returns(mockEventRepo1.Object);
         _mockCalendarEventRepositoryFactory
-            .Setup(f => f.Create(calendar2, credential2))
+            .Setup(f => f.Create(credential2, calendar2))
             .Returns(mockEventRepo2.Object);
 
         // Act
@@ -423,7 +423,7 @@ public class CalendarsSyncServiceTests
             .ThrowsAsync(new InvalidOperationException("Connection failed"));
 
         _mockCalendarEventRepositoryFactory
-            .Setup(f => f.Create(calendar, credential))
+            .Setup(f => f.Create(credential, calendar))
             .Returns(mockEventRepo.Object);
 
         // Act
@@ -468,7 +468,7 @@ public class CalendarsSyncServiceTests
 
     private static Credential CreateTestCredential()
     {
-        var credential = new Credential();
+        var credential = new Credential { FriendlyName = "Test Account" };
         
         // Set valid token data
         credential.UpdateStatusData([1, 2, 3, 4]); // Non-empty byte array

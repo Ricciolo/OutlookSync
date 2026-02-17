@@ -8,10 +8,16 @@ namespace OutlookSync.Domain.Aggregates;
 /// </summary>
 public class Calendar : Entity, IAggregateRoot
 {
+    private string _name = null!;
+    
     /// <summary>
     /// Gets the name of the calendar.
     /// </summary>
-    public required string Name { get; init; }
+    public required string Name 
+    { 
+        get => _name;
+        init => _name = value;
+    }
     
     /// <summary>
     /// Gets the external identifier of the calendar from the source system.
@@ -27,11 +33,6 @@ public class Calendar : Entity, IAggregateRoot
     /// Gets a value indicating whether the calendar is enabled for synchronization.
     /// </summary>
     public bool IsEnabled { get; private set; } = true;
-    
-    /// <summary>
-    /// Gets or sets the number of days forward to synchronize.
-    /// </summary>
-    public int SyncDaysForward { get; set; } = 30;
     
     private SyncConfiguration _configuration = null!;
 
@@ -73,12 +74,20 @@ public class Calendar : Entity, IAggregateRoot
         MarkAsUpdated();
     }
     
+    /// <summary>
+    /// Disables the calendar for synchronization.
+    /// </summary>
     public void Disable()
     {
         IsEnabled = false;
         MarkAsUpdated();
     }
     
+    /// <summary>
+    /// Updates the synchronization configuration for this calendar.
+    /// </summary>
+    /// <param name="configuration">The new synchronization configuration.</param>
+    /// <exception cref="ArgumentNullException">Thrown when configuration is null.</exception>
     public void UpdateConfiguration(SyncConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration, nameof(configuration));
@@ -87,6 +96,24 @@ public class Calendar : Entity, IAggregateRoot
         MarkAsUpdated();
     }
     
+    /// <summary>
+    /// Renames the calendar.
+    /// </summary>
+    /// <param name="newName">The new name for the calendar.</param>
+    /// <exception cref="ArgumentException">Thrown when newName is null, empty, or whitespace.</exception>
+    public void Rename(string newName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(newName, nameof(newName));
+        
+        _name = newName;
+        MarkAsUpdated();
+    }
+    
+    /// <summary>
+    /// Records a successful synchronization attempt.
+    /// </summary>
+    /// <param name="itemsSynced">The number of items successfully synchronized.</param>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when itemsSynced is negative.</exception>
     public void RecordSuccessfulSync(int itemsSynced)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(itemsSynced, nameof(itemsSynced));
@@ -96,6 +123,11 @@ public class Calendar : Entity, IAggregateRoot
         MarkAsUpdated();
     }
     
+    /// <summary>
+    /// Records a failed synchronization attempt.
+    /// </summary>
+    /// <param name="reason">The reason for the synchronization failure.</param>
+    /// <exception cref="ArgumentException">Thrown when reason is null, empty, or whitespace.</exception>
     public void RecordFailedSync(string reason)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(reason, nameof(reason));

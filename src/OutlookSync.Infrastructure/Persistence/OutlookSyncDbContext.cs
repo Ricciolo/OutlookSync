@@ -6,8 +6,13 @@ namespace OutlookSync.Infrastructure.Persistence;
 /// <summary>
 /// Application DbContext for OutlookSync
 /// </summary>
-public class OutlookSyncDbContext(DbContextOptions<OutlookSyncDbContext> options) : DbContext(options)
+public class OutlookSyncDbContext: DbContext
 {
+    public OutlookSyncDbContext(DbContextOptions<OutlookSyncDbContext> options) : base(options)
+    {
+        ChangeTracker.AutoDetectChangesEnabled = false;
+    }
+
     public DbSet<Calendar> Calendars => Set<Calendar>();
     
     public DbSet<Credential> Credentials => Set<Credential>();

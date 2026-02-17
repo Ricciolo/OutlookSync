@@ -45,9 +45,6 @@ namespace OutlookSync.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("SyncDaysForward")
-                        .HasColumnType("INTEGER");
-
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("TEXT");
 
@@ -66,6 +63,11 @@ namespace OutlookSync.Infrastructure.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FriendlyName")
+                        .IsRequired()
+                        .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
                     b.Property<byte[]>("StatusData")
@@ -95,6 +97,11 @@ namespace OutlookSync.Infrastructure.Migrations
 
                             b1.Property<DateTime>("StartDate")
                                 .HasColumnType("TEXT");
+
+                            b1.Property<int>("SyncDaysForward")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("INTEGER")
+                                .HasDefaultValue(30);
 
                             b1.HasKey("CalendarId");
 

@@ -8,6 +8,21 @@ namespace OutlookSync.Domain.Aggregates;
 /// </summary>
 public class Credential : Entity, IAggregateRoot
 {
+    private string _friendlyName = string.Empty;
+    
+    /// <summary>
+    /// Gets the friendly name for this credential.
+    /// </summary>
+    public required string FriendlyName
+    {
+        get => _friendlyName;
+        init
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(value, nameof(FriendlyName));
+            _friendlyName = value;
+        }
+    }
+    
     /// <summary>
     /// Gets the current status of the token.
     /// </summary>
@@ -17,6 +32,19 @@ public class Credential : Entity, IAggregateRoot
     /// Gets the serialized status data.
     /// </summary>
     public byte[]? StatusData { get; private set; }
+    
+    /// <summary>
+    /// Updates the friendly name of this credential.
+    /// </summary>
+    /// <param name="friendlyName">The new friendly name.</param>
+    /// <exception cref="ArgumentException">Thrown when friendly name is null, empty, or whitespace.</exception>
+    public void UpdateFriendlyName(string friendlyName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(friendlyName, nameof(friendlyName));
+        
+        _friendlyName = friendlyName;
+        MarkAsUpdated();
+    }
         
     /// <summary>
     /// Updates the credential status data.

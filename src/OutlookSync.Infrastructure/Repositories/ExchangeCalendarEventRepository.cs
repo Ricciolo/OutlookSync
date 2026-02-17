@@ -4,6 +4,7 @@ using Microsoft.Identity.Client;
 using OutlookSync.Domain.Aggregates;
 using OutlookSync.Domain.Repositories;
 using OutlookSync.Domain.ValueObjects;
+using OutlookSync.Infrastructure.Authentication;
 using EwsExchangeService = Microsoft.Exchange.WebServices.Data.ExchangeService;
 using DomainCalendarEvent = OutlookSync.Domain.ValueObjects.CalendarEvent;
 using Task = System.Threading.Tasks.Task;
@@ -18,10 +19,6 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
     private const int DefaultPastDaysToRetrieve = 7;
     private const int DefaultFutureDaysToRetrieve = 30;
     private const string ExchangeServiceUrl = "https://outlook.office365.com/EWS/Exchange.asmx";
-    private const string OfficeClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c";
-    
-    // EWS scopes for accessing calendar
-    private static readonly string[] s_ewsScopes = ["https://outlook.office365.com/EWS.AccessAsUser.All"];
 
     // Extended properties for storing sync metadata
     private static readonly Guid PropertySetId = new("{C11FF724-AA03-4555-9952-8FA248A11C3E}");
@@ -36,20 +33,26 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
                                                                 SourceCalendarIdProperty
                                                             };
 
-    private EwsExchangeService? _service;
-    private readonly Calendar _calendar;
+    private readonly Calendar? _calendar;
     private readonly Credential _credential;
     private readonly ILogger<ExchangeCalendarEventRepository> _logger;
     private readonly RetryPolicy _retryPolicy;
+    private EwsExchangeService? _service;
     private bool _isInitialized;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ExchangeCalendarEventRepository"/> class.
+    /// </summary>
+    /// <param name="calendar">The calendar aggregate (optional - required only for event operations).</param>
+    /// <param name="credential">The credential for authentication.</param>
+    /// <param name="logger">The logger instance.</param>
+    /// <param name="retryPolicy">The retry policy for transient failures (optional).</param>
     public ExchangeCalendarEventRepository(
-        Calendar calendar,
+        Calendar? calendar,
         Credential credential,
         ILogger<ExchangeCalendarEventRepository> logger,
         RetryPolicy? retryPolicy = null)
     {
-        ArgumentNullException.ThrowIfNull(calendar, nameof(calendar));
         ArgumentNullException.ThrowIfNull(credential, nameof(credential));
         ArgumentNullException.ThrowIfNull(logger, nameof(logger));
 
@@ -58,10 +61,17 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
         _logger = logger;
         _retryPolicy = retryPolicy ?? RetryPolicy.CreateDefault();
 
-        _logger.LogInformation(
-            "ExchangeCalendarEventRepository created for calendar {CalendarId} ({CalendarName})",
-            calendar.Id,
-            calendar.Name);
+        if (_calendar is not null)
+        {
+            _logger.LogInformation(
+                "ExchangeCalendarEventRepository created for calendar {CalendarId} ({CalendarName})",
+                _calendar.Id,
+                _calendar.Name);
+        }
+        else
+        {
+            _logger.LogInformation("ExchangeCalendarEventRepository created without specific calendar");
+        }
     }
 
     /// <inheritdoc/>
@@ -69,43 +79,43 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
     {
         if (_isInitialized)
         {
-            _logger.LogDebug("Repository already initialized for calendar {CalendarId}", _calendar.Id);
+            if (_calendar is not null)
+            {
+                _logger.LogDebug("Repository already initialized for calendar {CalendarId}", _calendar.Id);
+            }
+            else
+            {
+                _logger.LogDebug("Repository already initialized");
+            }
+
             return;
         }
 
-        _logger.LogInformation("Initializing repository for calendar {CalendarId} ({CalendarName})", 
-            _calendar.Id, 
-            _calendar.Name);
+        if (_calendar is not null)
+        {
+            _logger.LogInformation("Initializing repository for calendar {CalendarId} ({CalendarName})", 
+                _calendar.Id, 
+                _calendar.Name);
+        }
+        else
+        {
+            _logger.LogInformation("Initializing repository for credential authentication");
+        }
 
         try
         {
             // Build MSAL Public Client Application
-            var app = PublicClientApplicationBuilder
-                .Create(OfficeClientId)
-                .WithAuthority(AadAuthorityAudience.AzureAdAndPersonalMicrosoftAccount)
-                .Build();
+            var app = MsalHelper.CreatePublicClientApplication();
 
             // Configure token cache serialization
-            app.UserTokenCache.SetBeforeAccess(args =>
-            {
-                // Deserialize token cache from credential if available
-                if (_credential.StatusData != null && _credential.StatusData.Length > 0)
+            MsalHelper.ConfigureTokenCache(
+                app,
+                getStatusData: () => _credential.StatusData,
+                updateStatusData: data =>
                 {
-                    _logger.LogDebug("Deserializing existing token cache");
-                    args.TokenCache.DeserializeMsalV3(_credential.StatusData);
-                }
-            });
-
-            app.UserTokenCache.SetAfterAccess(args =>
-            {
-                // Serialize and save token cache when it changes
-                if (args.HasStateChanged)
-                {
-                    var tokenCacheData = args.TokenCache.SerializeMsalV3();
-                    _credential.UpdateStatusData(tokenCacheData);
+                    _credential.UpdateStatusData(data);
                     _logger.LogDebug("Token cache updated and saved to credential");
-                }
-            });
+                });
 
             // Try to acquire token silently
             AuthenticationResult result;
@@ -113,25 +123,45 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
             
             if (!accounts.Any())
             {
-                _logger.LogError("No cached accounts found for calendar {CalendarId}", _calendar.Id);
+                if (_calendar is not null)
+                {
+                    _logger.LogError("No cached accounts found for calendar {CalendarId}", _calendar.Id);
+                }
+                else
+                {
+                    _logger.LogError("No cached accounts found");
+                }
+
                 _credential.MarkTokenAsInvalid();
                 throw new InvalidOperationException(
-                    $"No cached authentication found for calendar '{_calendar.Name}'. Please authenticate first.");
+                    _calendar is not null 
+                        ? $"No cached authentication found for calendar '{_calendar.Name}'. Please authenticate first."
+                        : "No cached authentication found. Please authenticate first.");
             }
 
             _logger.LogDebug("Attempting silent token acquisition");
             try
             {
-                result = await app.AcquireTokenSilent(s_ewsScopes, accounts.FirstOrDefault())
+                result = await app.AcquireTokenSilent(MsalHelper.EwsScopes, accounts.FirstOrDefault())
                     .ExecuteAsync(cancellationToken);
                 _logger.LogInformation("Token acquired silently");
             }
             catch (MsalUiRequiredException ex)
             {
-                _logger.LogError(ex, "Silent token acquisition failed - user interaction required for calendar {CalendarId}", _calendar.Id);
+                if (_calendar is not null)
+                {
+                    _logger.LogError(ex, "Silent token acquisition failed - user interaction required for calendar {CalendarId}", _calendar.Id);
+                }
+                else
+                {
+                    _logger.LogError(ex, "Silent token acquisition failed - user interaction required");
+                }
+
                 _credential.MarkTokenAsInvalid();
                 throw new InvalidOperationException(
-                    $"Token expired or invalid for calendar '{_calendar.Name}'. User interaction required for re-authentication.", ex);
+                    _calendar is not null
+                        ? $"Token expired or invalid for calendar '{_calendar.Name}'. User interaction required for re-authentication."
+                        : "Token expired or invalid. User interaction required for re-authentication.", ex);
             }
 
             // Initialize EWS service with the acquired token
@@ -142,29 +172,56 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
                 Timeout = 100000 // 100 seconds
             };
 
-            // Verify calendar folder exists and is accessible
-            await ExecuteWithRetryAsync(async () =>
+            // Verify calendar folder exists and is accessible (only if calendar is specified)
+            if (_calendar is not null)
             {
-                var folderId = GetCalendarFolderId();
-                await Microsoft.Exchange.WebServices.Data.Folder.Bind(
-                    _service, 
-                    folderId, 
-                    new PropertySet(BasePropertySet.IdOnly), 
-                    cancellationToken);
-            }, cancellationToken);
+                await ExecuteWithRetryAsync(async () =>
+                {
+                    var folderId = GetCalendarFolderId();
+                    await Microsoft.Exchange.WebServices.Data.Folder.Bind(
+                        _service, 
+                        folderId, 
+                        new PropertySet(BasePropertySet.IdOnly), 
+                        cancellationToken);
+                }, cancellationToken);
 
-            _isInitialized = true;
-            _logger.LogInformation("Repository successfully initialized for calendar {CalendarId}", _calendar.Id);
+                _isInitialized = true;
+                _logger.LogInformation("Repository successfully initialized for calendar {CalendarId}", _calendar.Id);
+            }
+            else
+            {
+                _isInitialized = true;
+                _logger.LogInformation("Repository successfully initialized for authentication");
+            }
         }
         catch (MsalException ex)
         {
-            _logger.LogError(ex, "MSAL authentication failed for calendar {CalendarId}", _calendar.Id);
+            if (_calendar is not null)
+            {
+                _logger.LogError(ex, "MSAL authentication failed for calendar {CalendarId}", _calendar.Id);
+            }
+            else
+            {
+                _logger.LogError(ex, "MSAL authentication failed");
+            }
+
             _credential.MarkTokenAsInvalid();
-            throw new InvalidOperationException($"Failed to authenticate for calendar '{_calendar.Name}'", ex);
+            throw new InvalidOperationException(
+                _calendar is not null 
+                    ? $"Failed to authenticate for calendar '{_calendar.Name}'"
+                    : "Failed to authenticate", ex);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to initialize repository for calendar {CalendarId}", _calendar.Id);
+            if (_calendar is not null)
+            {
+                _logger.LogError(ex, "Failed to initialize repository for calendar {CalendarId}", _calendar.Id);
+            }
+            else
+            {
+                _logger.LogError(ex, "Failed to initialize repository");
+            }
+
             throw;
         }
     }
@@ -173,6 +230,11 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
     public async Task<IReadOnlyList<DomainCalendarEvent>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         EnsureInitialized();
+
+        if (_calendar is null)
+        {
+            throw new InvalidOperationException("Calendar is required for getting events");
+        }
         
         _logger.LogInformation("Getting all events for calendar {CalendarId}", _calendar.Id);
 
@@ -201,6 +263,60 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
             }
 
             return (IReadOnlyList<DomainCalendarEvent>)events;
+        }, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<AvailableCalendar>> GetAvailableCalendarsAsync(CancellationToken cancellationToken = default)
+    {
+        EnsureInitialized();
+        
+        _logger.LogInformation("Getting available calendars for authenticated user");
+
+        return await ExecuteWithRetryAsync(async () =>
+        {
+            var calendars = new List<AvailableCalendar>();
+
+            // Get the root calendar folder
+            var rootCalendarFolder = await Microsoft.Exchange.WebServices.Data.Folder.Bind(
+                _service!,
+                WellKnownFolderName.Calendar,
+                new PropertySet(BasePropertySet.IdOnly, FolderSchema.DisplayName),
+                cancellationToken);
+
+            // Add the default calendar
+            calendars.Add(new AvailableCalendar
+            {
+                ExternalId = rootCalendarFolder.Id.UniqueId,
+                Name = rootCalendarFolder.DisplayName
+            });
+
+            // Find all calendar subfolders
+            var folderView = new FolderView(int.MaxValue)
+            {
+                PropertySet = new PropertySet(BasePropertySet.IdOnly, FolderSchema.DisplayName),
+                Traversal = FolderTraversal.Deep
+            };
+
+            var findResults = await _service!.FindFolders(
+                WellKnownFolderName.Calendar, 
+                new SearchFilter.IsEqualTo(FolderSchema.FolderClass, "IPF.Appointment"), 
+                folderView);
+
+            foreach (var folder in findResults.Folders)
+            {
+                if (folder.Id.UniqueId != rootCalendarFolder.Id.UniqueId)
+                {
+                    calendars.Add(new AvailableCalendar
+                    {
+                        ExternalId = folder.Id.UniqueId,
+                        Name = folder.DisplayName
+                    });
+                }
+            }
+
+            _logger.LogInformation("Found {Count} available calendars", calendars.Count);
+            return (IReadOnlyList<AvailableCalendar>)calendars;
         }, cancellationToken);
     }
 
@@ -266,6 +382,11 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
     public async System.Threading.Tasks.Task AddAsync(DomainCalendarEvent calendarEvent, CancellationToken cancellationToken = default)
     {
         EnsureInitialized();
+
+        if (_calendar is null)
+        {
+            throw new InvalidOperationException("Calendar is required for adding events");
+        }
         
         ArgumentNullException.ThrowIfNull(calendarEvent, nameof(calendarEvent));
 
@@ -319,7 +440,9 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
         if (!_isInitialized || _service == null)
         {
             throw new InvalidOperationException(
-                $"Repository for calendar '{_calendar.Name}' has not been initialized. Call InitAsync() first.");
+                _calendar is not null
+                    ? $"Repository for calendar '{_calendar.Name}' has not been initialized. Call InitAsync() first."
+                    : "Repository has not been initialized. Call InitAsync() first.");
         }
     }
 
@@ -406,6 +529,11 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
     /// </summary>
     private FolderId GetCalendarFolderId()
     {
+        if (_calendar is null)
+        {
+            throw new InvalidOperationException("Calendar is required for this operation");
+        }
+
         return new FolderId(_calendar.ExternalId);
     }
 
@@ -430,6 +558,11 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
         var bodyType = appointment.Body.BodyType == BodyType.HTML 
             ? CalendarEventBodyType.Html 
             : CalendarEventBodyType.Text;
+
+        if (_calendar is null)
+        {
+            throw new InvalidOperationException("Calendar is required for mapping events");
+        }
 
         return new DomainCalendarEvent
         {

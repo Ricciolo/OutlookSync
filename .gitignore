@@ -253,3 +253,21 @@ paket-files/
 
 dev-data/
 /local.runsettings
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Tailwind CSS build artifacts
+**/wwwroot/css/app.css
+
+# Bootstrap (not needed with Tailwind)
+**/wwwroot/lib/
+
+# SQLite database files
+*.db
+*.db-shm
+*.db-wal
