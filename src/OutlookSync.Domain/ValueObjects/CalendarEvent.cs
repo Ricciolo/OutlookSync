@@ -40,6 +40,51 @@ public record CalendarEvent
     public bool IsAllDay { get; init; }
     
     public bool IsRecurring { get; init; }
+    
+    /// <summary>
+    /// Event color
+    /// </summary>
+    public EventColor Color { get; init; } = EventColor.None;
+    
+    /// <summary>
+    /// Event status (Busy, Free, etc.)
+    /// </summary>
+    public EventStatus Status { get; init; } = EventStatus.Busy;
+    
+    /// <summary>
+    /// RSVP response status
+    /// </summary>
+    public RsvpResponse RsvpStatus { get; init; } = RsvpResponse.None;
+    
+    /// <summary>
+    /// List of attendees as a text string
+    /// </summary>
+    public string? Attendees { get; init; }
+    
+    /// <summary>
+    /// Conference link (Teams, Zoom, etc.)
+    /// </summary>
+    public string? ConferenceLink { get; init; }
+    
+    /// <summary>
+    /// Categories assigned to the event
+    /// </summary>
+    public string? Categories { get; init; }
+    
+    /// <summary>
+    /// Whether the event is marked as private
+    /// </summary>
+    public bool IsPrivate { get; init; }
+    
+    /// <summary>
+    /// Whether the event has attachments
+    /// </summary>
+    public bool HasAttachments { get; init; }
+    
+    /// <summary>
+    /// Whether the event has reminders enabled
+    /// </summary>
+    public bool HasReminders { get; init; }
 
     /// <summary>
     /// Indicates if this event was copied from another calendar
