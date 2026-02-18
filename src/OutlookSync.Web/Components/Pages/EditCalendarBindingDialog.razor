@@ -36,22 +36,42 @@
                     <!-- Source/Target Info (Read-only) -->
                     <div class="card bg-gray-50">
                         <h4 class="font-semibold text-gray-900 mb-2">Source Calendar</h4>
-                        <p class="text-sm text-gray-700">
-                            <span class="font-medium">Credential ID:</span> @_binding.SourceCredentialId
-                        </p>
-                        <p class="text-sm text-gray-700">
-                            <span class="font-medium">Calendar ID:</span> @_binding.SourceCalendarExternalId
-                        </p>
+                        @if (_isLoadingNames)
+                        {
+                            <div class="flex items-center text-sm text-gray-600">
+                                <span class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></span>
+                                Loading...
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="text-sm text-gray-700">
+                                <span class="font-medium">Credential:</span> @_sourceCredentialName
+                            </p>
+                            <p class="text-sm text-gray-700">
+                                <span class="font-medium">Calendar:</span> @_sourceCalendarName
+                            </p>
+                        }
                     </div>
 
                     <div class="card bg-gray-50">
                         <h4 class="font-semibold text-gray-900 mb-2">Target Calendar</h4>
-                        <p class="text-sm text-gray-700">
-                            <span class="font-medium">Credential ID:</span> @_binding.TargetCredentialId
-                        </p>
-                        <p class="text-sm text-gray-700">
-                            <span class="font-medium">Calendar ID:</span> @_binding.TargetCalendarExternalId
-                        </p>
+                        @if (_isLoadingNames)
+                        {
+                            <div class="flex items-center text-sm text-gray-600">
+                                <span class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></span>
+                                Loading...
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="text-sm text-gray-700">
+                                <span class="font-medium">Credential:</span> @_targetCredentialName
+                            </p>
+                            <p class="text-sm text-gray-700">
+                                <span class="font-medium">Calendar:</span> @_targetCalendarName
+                            </p>
+                        }
                     </div>
 
                     <!-- Configuration Settings -->

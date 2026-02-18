@@ -14,13 +14,13 @@ public partial class Home : ComponentBase
     private string _lastSyncDisplay = "-";
 
     [Inject]
-    private ICalendarRepository CalendarRepository { get; set; } = default!;
+    private ICalendarBindingRepository CalendarBindingRepository { get; set; } = default!;
 
     [Inject]
     private ICredentialRepository CredentialRepository { get; set; } = default!;
 
     /// <summary>
-    /// Gets the number of active calendars
+    /// Gets the number of active calendar bindings
     /// </summary>
     protected int ActiveCalendarsCount => _activeCalendarsCount;
 
@@ -42,8 +42,8 @@ public partial class Home : ComponentBase
 
     private async Task LoadDashboardDataAsync()
     {
-        // Count active calendars
-        _activeCalendarsCount = await CalendarRepository.Query
+        // Count active calendar bindings
+        _activeCalendarsCount = await CalendarBindingRepository.Query
             .Where(c => c.IsEnabled)
             .CountAsync();
 
@@ -51,8 +51,8 @@ public partial class Home : ComponentBase
         _credentialsCount = await CredentialRepository.Query
             .CountAsync();
 
-        // Get the most recent sync date
-        var lastSync = await CalendarRepository.Query
+        // Get the most recent sync date from calendar bindings
+        var lastSync = await CalendarBindingRepository.Query
             .Where(c => c.LastSyncAt != null)
             .OrderByDescending(c => c.LastSyncAt)
             .Select(c => c.LastSyncAt)

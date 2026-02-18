@@ -11,8 +11,8 @@ using OutlookSync.Infrastructure.Persistence;
 namespace OutlookSync.Infrastructure.Migrations
 {
     [DbContext(typeof(OutlookSyncDbContext))]
-    [Migration("20260217231042_AddCalendarBindingWithCredentials")]
-    partial class AddCalendarBindingWithCredentials
+    [Migration("20260218090323_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

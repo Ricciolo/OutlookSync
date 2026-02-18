@@ -59,8 +59,7 @@ public class CalendarsSyncServiceTests
     public async Task SyncAllCalendarsAsync_WithOneEnabledCalendar_ShouldReturnSuccessWithZeroEventsCopied()
     {
         // Arrange
-        var calendar = CreateTestCalendar("Calendar1", isEnabled: true);
-        var binding = CreateTestBinding(calendar);
+        var binding = CreateTestBinding("Calendar1", true);
         
         _mockCalendarBindingRepository
             .Setup(r => r.GetEnabledAsync(It.IsAny<CancellationToken>()))
@@ -81,7 +80,7 @@ public class CalendarsSyncServiceTests
             .Setup(r => r.InitAsync(It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
         mockSourceEventRepository
-            .Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetAllAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
         var mockTargetEventRepository = new Mock<ICalendarEventRepository>();
@@ -90,10 +89,10 @@ public class CalendarsSyncServiceTests
             .Returns(Task.CompletedTask);
 
         _mockCalendarEventRepositoryFactory
-            .Setup(f => f.Create(sourceCredential, binding.SourceCalendarExternalId, It.IsAny<string>()))
+            .Setup(f => f.Create(sourceCredential))
             .Returns(mockSourceEventRepository.Object);
         _mockCalendarEventRepositoryFactory
-            .Setup(f => f.Create(targetCredential, binding.TargetCalendarExternalId, It.IsAny<string>()))
+            .Setup(f => f.Create(targetCredential))
             .Returns(mockTargetEventRepository.Object);
 
         // Act
@@ -111,10 +110,8 @@ public class CalendarsSyncServiceTests
     public async Task SyncAllCalendarsAsync_WithMultipleCalendarsAndEvents_ShouldCopyEventsBetweenCalendars()
     {
         // Arrange
-        var calendar1 = CreateTestCalendar("Calendar1", isEnabled: true);
-        var calendar2 = CreateTestCalendar("Calendar2", isEnabled: true);
-        var binding1 = CreateTestBinding(calendar1);
-        var binding2 = CreateTestBinding(calendar2);
+        var binding1 = CreateTestBinding("Calendar1", true);
+        var binding2 = CreateTestBinding("Calendar2", true);
         var bindingsList = new List<CalendarBinding> { binding1, binding2 };
         _mockCalendarBindingRepository.Setup(r => r.GetEnabledAsync(It.IsAny<CancellationToken>())).ReturnsAsync(bindingsList);
 
@@ -124,12 +121,12 @@ public class CalendarsSyncServiceTests
         var targetCred2 = CreateTestCredential();
         
         // Setup event repository for binding1
-        var event1 = CreateTestEvent(calendar1.Id, "Meeting 1");
-        var event2 = CreateTestEvent(calendar1.Id, "Meeting 2");
+        var event1 = CreateTestEvent(Guid.CreateVersion7(), "Meeting 1");
+        var event2 = CreateTestEvent(Guid.CreateVersion7(), "Meeting 2");
         SetupBindingMocks(binding1, credential1, targetCred1, [event1, event2]);
         
         // Setup event repository for binding2
-        var event3 = CreateTestEvent(calendar2.Id, "Meeting 3");
+        var event3 = CreateTestEvent(Guid.CreateVersion7(), "Meeting 3");
         SetupBindingMocks(binding2, credential2, targetCred2, [event3]);
 
         // Act
@@ -147,10 +144,8 @@ public class CalendarsSyncServiceTests
     public async Task SyncAllCalendarsAsync_WithMissingCredential_ShouldReturnPartialResult()
     {
         // Arrange
-        var calendar1 = CreateTestCalendar("Calendar1", isEnabled: true);
-        var calendar2 = CreateTestCalendar("Calendar2", isEnabled: true);
-        var binding1 = CreateTestBinding(calendar1);
-        var binding2 = CreateTestBinding(calendar2);
+        var binding1 = CreateTestBinding("Calendar1", true);
+        var binding2 = CreateTestBinding("Calendar2", true);
         var bindingsList = new List<CalendarBinding> { binding1, binding2 };
         _mockCalendarBindingRepository.Setup(r => r.GetEnabledAsync(It.IsAny<CancellationToken>())).ReturnsAsync(bindingsList);
 
@@ -178,8 +173,7 @@ public class CalendarsSyncServiceTests
     public async Task SyncAllCalendarsAsync_WithInvalidToken_ShouldReturnPartialResult()
     {
         // Arrange
-        var calendar = CreateTestCalendar("Calendar1", isEnabled: true);
-        var binding = CreateTestBinding(calendar);
+        var binding = CreateTestBinding("Calendar1", true);
         var bindingsList = new List<CalendarBinding> { binding };
         _mockCalendarBindingRepository.Setup(r => r.GetEnabledAsync(It.IsAny<CancellationToken>())).ReturnsAsync(bindingsList);
 
@@ -206,8 +200,7 @@ public class CalendarsSyncServiceTests
     public async Task SyncAllCalendarsAsync_ShouldSkipCopiedEvents()
     {
         // Arrange
-        var calendar1 = CreateTestCalendar("Calendar1", isEnabled: true);
-        var binding1 = CreateTestBinding(calendar1);
+        var binding1 = CreateTestBinding("Calendar1", true);
         var bindingsList = new List<CalendarBinding> { binding1 };
         _mockCalendarBindingRepository.Setup(r => r.GetEnabledAsync(It.IsAny<CancellationToken>())).ReturnsAsync(bindingsList);
 
@@ -215,11 +208,11 @@ public class CalendarsSyncServiceTests
         var targetCred1 = CreateTestCredential();
         
         // Create an original event and a copied event
-        var originalEvent = CreateTestEvent(calendar1.Id, "Original Meeting");
+        var originalEvent = CreateTestEvent(Guid.CreateVersion7(), "Original Meeting");
         var copiedEvent = new CalendarEvent
         {
             Id = Guid.CreateVersion7(),
-            CalendarId = calendar1.Id,
+            CalendarId = Guid.CreateVersion7(),
             ExternalId = "copied_123",
             Subject = "[SYNCED] Copied Meeting",
             Start = DateTime.UtcNow,
@@ -247,15 +240,14 @@ public class CalendarsSyncServiceTests
         // We'll verify that events are synced correctly instead.
         
         // Arrange
-        var calendar1 = CreateTestCalendar("Calendar1", isEnabled: true);
-        var binding1 = CreateTestBinding(calendar1);
+        var binding1 = CreateTestBinding("Calendar1", true);
         var bindingsList = new List<CalendarBinding> { binding1 };
         _mockCalendarBindingRepository.Setup(r => r.GetEnabledAsync(It.IsAny<CancellationToken>())).ReturnsAsync(bindingsList);
 
         var credential1 = CreateTestCredential();
         var targetCred1 = CreateTestCredential();
         
-        var event1 = CreateTestEvent(calendar1.Id, "Meeting");
+        var event1 = CreateTestEvent(Guid.CreateVersion7(), "Meeting");
         SetupBindingMocks(binding1, credential1, targetCred1, [event1]);
 
         // Act
@@ -270,8 +262,7 @@ public class CalendarsSyncServiceTests
     public async Task SyncAllCalendarsAsync_ShouldCallUnitOfWorkSaveChanges()
     {
         // Arrange
-        var calendar = CreateTestCalendar("Calendar1", isEnabled: true);
-        var binding = CreateTestBinding(calendar);
+        var binding = CreateTestBinding("Calendar1", true);
         var bindingsList = new List<CalendarBinding> { binding };
         _mockCalendarBindingRepository.Setup(r => r.GetEnabledAsync(It.IsAny<CancellationToken>())).ReturnsAsync(bindingsList);
 
@@ -291,8 +282,7 @@ public class CalendarsSyncServiceTests
     public async Task SyncAllCalendarsAsync_WhenExceptionDuringSave_ShouldThrowException()
     {
         // Arrange
-        var calendar = CreateTestCalendar("Calendar1", isEnabled: true);
-        var binding = CreateTestBinding(calendar);
+        var binding = CreateTestBinding("Calendar1", true);
         var bindingsList = new List<CalendarBinding> { binding };
         _mockCalendarBindingRepository.Setup(r => r.GetEnabledAsync(It.IsAny<CancellationToken>())).ReturnsAsync(bindingsList);
 
@@ -314,10 +304,8 @@ public class CalendarsSyncServiceTests
     public async Task SyncAllCalendarsAsync_ShouldUpdateCalendarWithSuccessfulSync()
     {
         // Arrange
-        var calendar1 = CreateTestCalendar("Calendar1", isEnabled: true);
-        var calendar2 = CreateTestCalendar("Calendar2", isEnabled: true);
-        var binding1 = CreateTestBinding(calendar1);
-        var binding2 = CreateTestBinding(calendar2);
+        var binding1 = CreateTestBinding("Calendar1", true);
+        var binding2 = CreateTestBinding("Calendar2", true);
         var bindingsList = new List<CalendarBinding> { binding1, binding2 };
         _mockCalendarBindingRepository.Setup(r => r.GetEnabledAsync(It.IsAny<CancellationToken>())).ReturnsAsync(bindingsList);
 
@@ -343,8 +331,7 @@ public class CalendarsSyncServiceTests
     public async Task SyncAllCalendarsAsync_WhenSyncFails_ShouldUpdateCredentialInFinally()
     {
         // Arrange
-        var calendar = CreateTestCalendar("Calendar1", isEnabled: true);
-        var binding = CreateTestBinding(calendar);
+        var binding = CreateTestBinding("Calendar1", true);
         var bindingsList = new List<CalendarBinding> { binding };
         _mockCalendarBindingRepository.Setup(r => r.GetEnabledAsync(It.IsAny<CancellationToken>())).ReturnsAsync(bindingsList);
 
@@ -364,7 +351,7 @@ public class CalendarsSyncServiceTests
             .ThrowsAsync(new InvalidOperationException("Connection failed"));
 
         _mockCalendarEventRepositoryFactory
-            .Setup(f => f.Create(credential, binding.SourceCalendarExternalId, It.IsAny<string>()))
+            .Setup(f => f.Create(credential))
             .Returns(mockEventRepo.Object);
 
         // Act
@@ -397,7 +384,7 @@ public class CalendarsSyncServiceTests
         // Setup source repository
         var mockSourceRepo = CreateMockEventRepository(sourceEvents);
         _mockCalendarEventRepositoryFactory
-            .Setup(f => f.Create(sourceCredential, binding.SourceCalendarExternalId, It.IsAny<string>()))
+            .Setup(f => f.Create(sourceCredential))
             .Returns(mockSourceRepo.Object);
 
         // Setup target repository
@@ -408,56 +395,28 @@ public class CalendarsSyncServiceTests
                 .Setup(r => r.InitAsync(It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
             mockTargetRepo
-                .Setup(r => r.AddAsync(It.IsAny<CalendarEvent>(), It.IsAny<CancellationToken>()))
+                .Setup(r => r.AddAsync(It.IsAny<CalendarEvent>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
         }
         
         _mockCalendarEventRepositoryFactory
-            .Setup(f => f.Create(targetCredential, binding.TargetCalendarExternalId, It.IsAny<string>()))
+            .Setup(f => f.Create(targetCredential))
             .Returns(mockTargetRepo.Object);
     }
 
-    private static Calendar CreateTestCalendar(string name, bool isEnabled)
-    {
-        var calendar = new Calendar
-        {
-            Name = name,
-            ExternalId = $"ext_{Guid.NewGuid()}",
-            CredentialId = Guid.CreateVersion7(),
-            Configuration = new SyncConfiguration
-            {
-                Interval = SyncInterval.Every30Minutes(),
-                StartDate = DateTime.UtcNow,
-                IsPrivate = false,
-                FieldSelection = CalendarFieldSelection.All()
-            }
-        };
-
-        if (isEnabled)
-        {
-            calendar.Enable();
-        }
-        else
-        {
-            calendar.Disable();
-        }
-
-        return calendar;
-    }
-
-    private static CalendarBinding CreateTestBinding(Calendar calendar)
+    private static CalendarBinding CreateTestBinding(string name, bool isEnabled)
     {
         var binding = new CalendarBinding
         {
-            Name = $"Binding for {calendar.Name}",
-            SourceCredentialId = calendar.CredentialId,
-            SourceCalendarExternalId = calendar.ExternalId,
+            Name = name,
+            SourceCredentialId = Guid.CreateVersion7(),
+            SourceCalendarExternalId = $"source_{Guid.NewGuid()}",
             TargetCredentialId = Guid.CreateVersion7(),
             TargetCalendarExternalId = $"target_{Guid.NewGuid()}",
             Configuration = CalendarBindingConfiguration.Default()
         };
         
-        if (calendar.IsEnabled)
+        if (isEnabled)
         {
             binding.Enable();
         }
@@ -506,17 +465,18 @@ public class CalendarsSyncServiceTests
             .Returns(Task.CompletedTask);
         
         mockRepo
-            .Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetAllAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(events);
         
         mockRepo
-            .Setup(r => r.AddAsync(It.IsAny<CalendarEvent>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.AddAsync(It.IsAny<CalendarEvent>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
         
         mockRepo
             .Setup(r => r.FindCopiedEventAsync(
-                It.IsAny<CalendarEvent>(),
-                It.IsAny<Calendar>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync((CalendarEvent?)null);
 

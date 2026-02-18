@@ -107,21 +107,17 @@ public class CalendarsSyncService(
 
         try
         {
-            // Create repositories for source and target using external IDs
-            var sourceRepository = calendarEventRepositoryFactory.Create(
-                sourceCredential, 
-                binding.SourceCalendarExternalId, 
-                $"Source: {binding.Name}");
+            // Create repositories for source and target
+            var sourceRepository = calendarEventRepositoryFactory.Create(sourceCredential);
             await sourceRepository.InitAsync(cancellationToken);
 
-            var targetRepository = calendarEventRepositoryFactory.Create(
-                targetCredential, 
-                binding.TargetCalendarExternalId, 
-                $"Target: {binding.Name}");
+            var targetRepository = calendarEventRepositoryFactory.Create(targetCredential);
             await targetRepository.InitAsync(cancellationToken);
 
             // Fetch events from source
-            var sourceEvents = await sourceRepository.GetAllAsync(cancellationToken);
+            var sourceEvents = await sourceRepository.GetAllAsync(
+                binding.SourceCalendarExternalId, 
+                cancellationToken);
 
             // Filter out already-copied events
             var originalEvents = sourceEvents
@@ -148,9 +144,20 @@ public class CalendarsSyncService(
                 try
                 {
                     // Check if we've already copied this event
-                    // Note: FindCopiedEventAsync may need to be updated to work without Calendar parameter
-                    // For now, we'll skip the duplicate check and let Exchange handle it
-                    
+                    var existingCopy = await targetRepository.FindCopiedEventAsync(
+                        sourceEvent.ExternalId,
+                        binding.SourceCalendarExternalId,
+                        binding.TargetCalendarExternalId,
+                        cancellationToken);
+
+                    if (existingCopy != null)
+                    {
+                        logger.LogDebug(
+                            "Event {EventSubject} already copied, skipping",
+                            sourceEvent.Subject);
+                        continue;
+                    }
+
                     // Transform event based on binding configuration
                     var newExternalId = $"copy_{Guid.NewGuid()}";
                     var transformedEvent = EventFilteringService.TransformEvent(
@@ -160,7 +167,7 @@ public class CalendarsSyncService(
                         newExternalId);
 
                     // Add to target repository
-                    await targetRepository.AddAsync(transformedEvent, cancellationToken);
+                    await targetRepository.AddAsync(transformedEvent, binding.TargetCalendarExternalId, cancellationToken);
 
                     eventsCopied++;
 

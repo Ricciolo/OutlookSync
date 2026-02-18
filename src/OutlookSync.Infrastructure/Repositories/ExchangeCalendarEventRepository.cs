@@ -33,8 +33,6 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
                                                                 SourceCalendarIdProperty
                                                             };
 
-    private readonly string? _calendarExternalId;
-    private readonly string? _calendarName;
     private readonly Credential _credential;
     private readonly ILogger<ExchangeCalendarEventRepository> _logger;
     private readonly RetryPolicy _retryPolicy;
@@ -44,14 +42,10 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
     /// <summary>
     /// Initializes a new instance of the <see cref="ExchangeCalendarEventRepository"/> class.
     /// </summary>
-    /// <param name="calendarExternalId">The calendar external ID (optional - required only for event operations).</param>
-    /// <param name="calendarName">The calendar friendly name for logging (optional).</param>
     /// <param name="credential">The credential for authentication.</param>
     /// <param name="logger">The logger instance.</param>
     /// <param name="retryPolicy">The retry policy for transient failures (optional).</param>
     public ExchangeCalendarEventRepository(
-        string? calendarExternalId,
-        string? calendarName,
         Credential credential,
         ILogger<ExchangeCalendarEventRepository> logger,
         RetryPolicy? retryPolicy = null)
@@ -59,23 +53,11 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
         ArgumentNullException.ThrowIfNull(credential, nameof(credential));
         ArgumentNullException.ThrowIfNull(logger, nameof(logger));
 
-        _calendarExternalId = calendarExternalId;
-        _calendarName = calendarName;
         _credential = credential;
         _logger = logger;
         _retryPolicy = retryPolicy ?? RetryPolicy.CreateDefault();
 
-        if (_calendarExternalId is not null)
-        {
-            _logger.LogInformation(
-                "ExchangeCalendarEventRepository created for calendar '{CalendarName}' ({CalendarExternalId})",
-                _calendarName ?? "Unknown",
-                _calendarExternalId);
-        }
-        else
-        {
-            _logger.LogInformation("ExchangeCalendarEventRepository created without specific calendar");
-        }
+        _logger.LogDebug("ExchangeCalendarEventRepository created");
     }
 
     /// <inheritdoc/>
@@ -83,28 +65,11 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
     {
         if (_isInitialized)
         {
-            if (_calendarExternalId is not null)
-            {
-                _logger.LogDebug("Repository already initialized for calendar {CalendarName}", _calendarName ?? "Unknown");
-            }
-            else
-            {
-                _logger.LogDebug("Repository already initialized");
-            }
-
+            _logger.LogDebug("Repository already initialized");
             return;
         }
 
-        if (_calendarExternalId is not null)
-        {
-            _logger.LogInformation("Initializing repository for calendar {CalendarName} ({CalendarExternalId})", 
-                _calendarName ?? "Unknown", 
-                _calendarExternalId);
-        }
-        else
-        {
-            _logger.LogInformation("Initializing repository for credential authentication");
-        }
+        _logger.LogInformation("Initializing repository and authenticating");
 
         try
         {
@@ -127,20 +92,9 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
             
             if (!accounts.Any())
             {
-                if (_calendarExternalId is not null)
-                {
-                    _logger.LogError("No cached accounts found for calendar {CalendarName}", _calendarName ?? "Unknown");
-                }
-                else
-                {
-                    _logger.LogError("No cached accounts found");
-                }
-
+                _logger.LogError("No cached accounts found");
                 _credential.MarkTokenAsInvalid();
-                throw new InvalidOperationException(
-                    _calendarExternalId is not null 
-                        ? $"No cached authentication found for calendar '{_calendarName ?? "Unknown"}'. Please authenticate first."
-                        : "No cached authentication found. Please authenticate first.");
+                throw new InvalidOperationException("No cached authentication found. Please authenticate first.");
             }
 
             _logger.LogDebug("Attempting silent token acquisition");
@@ -152,20 +106,9 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
             }
             catch (MsalUiRequiredException ex)
             {
-                if (_calendarExternalId is not null)
-                {
-                    _logger.LogError(ex, "Silent token acquisition failed - user interaction required for calendar {CalendarName}", _calendarName ?? "Unknown");
-                }
-                else
-                {
-                    _logger.LogError(ex, "Silent token acquisition failed - user interaction required");
-                }
-
+                _logger.LogError(ex, "Silent token acquisition failed - user interaction required");
                 _credential.MarkTokenAsInvalid();
-                throw new InvalidOperationException(
-                    _calendarExternalId is not null
-                        ? $"Token expired or invalid for calendar '{_calendarName ?? "Unknown"}'. User interaction required for re-authentication."
-                        : "Token expired or invalid. User interaction required for re-authentication.", ex);
+                throw new InvalidOperationException("Token expired or invalid. User interaction required for re-authentication.", ex);
             }
 
             // Initialize EWS service with the acquired token
@@ -176,71 +119,29 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
                 Timeout = 100000 // 100 seconds
             };
 
-            // Verify calendar folder exists and is accessible (only if calendar is specified)
-            if (_calendarExternalId is not null)
-            {
-                await ExecuteWithRetryAsync(async () =>
-                {
-                    var folderId = GetCalendarFolderId();
-                    await Microsoft.Exchange.WebServices.Data.Folder.Bind(
-                        _service, 
-                        folderId, 
-                        new PropertySet(BasePropertySet.IdOnly), 
-                        cancellationToken);
-                }, cancellationToken);
-
-                _isInitialized = true;
-                _logger.LogInformation("Repository successfully initialized for calendar {CalendarName}", _calendarName ?? "Unknown");
-            }
-            else
-            {
-                _isInitialized = true;
-                _logger.LogInformation("Repository successfully initialized for authentication");
-            }
+            _isInitialized = true;
+            _logger.LogInformation("Repository successfully initialized and authenticated");
         }
         catch (MsalException ex)
         {
-            if (_calendarExternalId is not null)
-            {
-                _logger.LogError(ex, "MSAL authentication failed for calendar {CalendarName}", _calendarName ?? "Unknown");
-            }
-            else
-            {
-                _logger.LogError(ex, "MSAL authentication failed");
-            }
-
+            _logger.LogError(ex, "MSAL authentication failed");
             _credential.MarkTokenAsInvalid();
-            throw new InvalidOperationException(
-                _calendarExternalId is not null 
-                    ? $"Failed to authenticate for calendar '{_calendarName ?? "Unknown"}'"
-                    : "Failed to authenticate", ex);
+            throw new InvalidOperationException("Failed to authenticate", ex);
         }
         catch (Exception ex)
         {
-            if (_calendarExternalId is not null)
-            {
-                _logger.LogError(ex, "Failed to initialize repository for calendar {CalendarName}", _calendarName ?? "Unknown");
-            }
-            else
-            {
-                _logger.LogError(ex, "Failed to initialize repository");
-            }
-
+            _logger.LogError(ex, "Failed to initialize repository");
             throw;
         }
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<DomainCalendarEvent>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<DomainCalendarEvent>> GetAllAsync(string calendarExternalId, CancellationToken cancellationToken = default)
     {
         EnsureInitialized();
-
-        if (_calendarExternalId is null)
-        {
-            throw new InvalidOperationException("Calendar is required for getting events");
-        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(calendarExternalId, nameof(calendarExternalId));
         
-        _logger.LogInformation("Getting all events for calendar {CalendarName}", _calendarName ?? "Unknown");
+        _logger.LogInformation("Getting all events for calendar {CalendarExternalId}", calendarExternalId);
 
         return await ExecuteWithRetryAsync(async () =>
         {
@@ -253,7 +154,7 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
                 PropertySet = new PropertySet(BasePropertySet.IdOnly)
             };
 
-            var folderId = GetCalendarFolderId();
+            var folderId = new FolderId(calendarExternalId);
             var appointments = await _service!.FindAppointments(folderId, view);
 
             _logger.LogInformation("Found {Count} appointments", appointments.Items.Count);
@@ -325,31 +226,69 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
     }
 
     /// <inheritdoc/>
+    public async Task<AvailableCalendar?> GetAvailableCalendarByIdAsync(string calendarExternalId, CancellationToken cancellationToken = default)
+    {
+        EnsureInitialized();
+        ArgumentException.ThrowIfNullOrWhiteSpace(calendarExternalId, nameof(calendarExternalId));
+        
+        _logger.LogInformation("Getting calendar with external ID {CalendarExternalId}", calendarExternalId);
+
+        return await ExecuteWithRetryAsync(async () =>
+        {
+            try
+            {
+                // Try to bind directly to the folder using the unique ID
+                var folder = await Microsoft.Exchange.WebServices.Data.Folder.Bind(
+                    _service!,
+                    new FolderId(calendarExternalId),
+                    new PropertySet(BasePropertySet.IdOnly, FolderSchema.DisplayName),
+                    cancellationToken);
+
+                _logger.LogInformation("Found calendar: {CalendarName}", folder.DisplayName);
+                
+                return new AvailableCalendar
+                {
+                    ExternalId = folder.Id.UniqueId,
+                    Name = folder.DisplayName
+                };
+            }
+            catch (ServiceResponseException ex)
+            {
+                _logger.LogWarning(ex, "Calendar with ID {CalendarExternalId} not found", calendarExternalId);
+                return null;
+            }
+        }, cancellationToken);
+    }
+
+    /// <inheritdoc/>
     public async Task<DomainCalendarEvent?> FindCopiedEventAsync(
-        DomainCalendarEvent sourceEvent,
-        Calendar sourceCalendar,
+        string originalEventExternalId,
+        string sourceCalendarExternalId,
+        string targetCalendarExternalId,
         CancellationToken cancellationToken = default)
     {
         EnsureInitialized();
         
-        ArgumentNullException.ThrowIfNull(sourceEvent, nameof(sourceEvent));
-        ArgumentNullException.ThrowIfNull(sourceCalendar, nameof(sourceCalendar));
+        ArgumentException.ThrowIfNullOrEmpty(originalEventExternalId, nameof(originalEventExternalId));
+        ArgumentException.ThrowIfNullOrEmpty(sourceCalendarExternalId, nameof(sourceCalendarExternalId));
+        ArgumentException.ThrowIfNullOrEmpty(targetCalendarExternalId, nameof(targetCalendarExternalId));
 
         _logger.LogInformation(
-            "Finding copied event from source calendar {SourceCalendarId} with original event ID {OriginalEventId}",
-            sourceCalendar.Id,
-            sourceEvent.ExternalId);
+            "Finding copied event in target calendar {TargetCalendarExternalId} from source calendar {SourceCalendarExternalId} with original event ID {OriginalEventId}",
+            targetCalendarExternalId,
+            sourceCalendarExternalId,
+            originalEventExternalId);
 
         return await ExecuteWithRetryAsync(async () =>
         {
             // Create filters for extended properties
             var originalEventIdFilter = new SearchFilter.IsEqualTo(
                 OriginalEventIdProperty,
-                sourceEvent.ExternalId);
+                originalEventExternalId);
 
             var sourceCalendarIdFilter = new SearchFilter.IsEqualTo(
                 SourceCalendarIdProperty,
-                sourceCalendar.Id.ToString());
+                sourceCalendarExternalId);
 
             // Combine filters with AND
             var combinedFilter = new SearchFilter.SearchFilterCollection(
@@ -366,7 +305,7 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
                     SourceCalendarIdProperty)
             };
 
-            var folderId = GetCalendarFolderId();
+            var folderId = new FolderId(targetCalendarExternalId);
             var results = await _service!.FindItems(folderId, combinedFilter, view);
 
             if (results.Items.Count > 0 && results.Items[0] is Appointment appointment)
@@ -383,21 +322,16 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
     }
 
     /// <inheritdoc/>
-    public async System.Threading.Tasks.Task AddAsync(DomainCalendarEvent calendarEvent, CancellationToken cancellationToken = default)
+    public async System.Threading.Tasks.Task AddAsync(DomainCalendarEvent calendarEvent, string calendarExternalId, CancellationToken cancellationToken = default)
     {
         EnsureInitialized();
-
-        if (_calendarExternalId is null)
-        {
-            throw new InvalidOperationException("Calendar is required for adding events");
-        }
-        
         ArgumentNullException.ThrowIfNull(calendarEvent, nameof(calendarEvent));
+        ArgumentException.ThrowIfNullOrWhiteSpace(calendarExternalId, nameof(calendarExternalId));
 
         _logger.LogInformation(
-            "Adding calendar event '{Subject}' to calendar {CalendarName}",
+            "Adding calendar event '{Subject}' to calendar {CalendarExternalId}",
             calendarEvent.Subject,
-            _calendarName ?? "Unknown");
+            calendarExternalId);
 
         await ExecuteWithRetryAsync(async () =>
         {
@@ -424,7 +358,7 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
                 }
             }
 
-            var folderId = GetCalendarFolderId();
+            var folderId = new FolderId(calendarExternalId);
             await appointment.Save(folderId);
 
             calendarEvent.ExternalId = appointment.Id.UniqueId;
@@ -443,10 +377,7 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
     {
         if (!_isInitialized || _service == null)
         {
-            throw new InvalidOperationException(
-                _calendarExternalId is not null
-                    ? $"Repository for calendar '{_calendarName ?? "Unknown"}' has not been initialized. Call InitAsync() first."
-                    : "Repository has not been initialized. Call InitAsync() first.");
+            throw new InvalidOperationException("Repository has not been initialized. Call InitAsync() first.");
         }
     }
 
@@ -529,22 +460,9 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
     }
 
     /// <summary>
-    /// Gets the folder ID for the calendar
-    /// </summary>
-    private FolderId GetCalendarFolderId()
-    {
-        if (_calendarExternalId is null)
-        {
-            throw new InvalidOperationException("Calendar is required for this operation");
-        }
-
-        return new FolderId(_calendarExternalId);
-    }
-
-    /// <summary>
     /// Maps Exchange Appointment to domain CalendarEvent
     /// </summary>
-    private DomainCalendarEvent MapToCalendarEvent(Appointment appointment)
+    private static DomainCalendarEvent MapToCalendarEvent(Appointment appointment)
     {
         // Read metadata from extended properties
         var hasOriginalEventId = appointment.TryGetProperty(OriginalEventIdProperty, out string? originalEventId);
@@ -562,11 +480,6 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
         var bodyType = appointment.Body.BodyType == BodyType.HTML 
             ? CalendarEventBodyType.Html 
             : CalendarEventBodyType.Text;
-
-        if (_calendarExternalId is null)
-        {
-            throw new InvalidOperationException("Calendar is required for mapping events");
-        }
 
         return new DomainCalendarEvent
         {

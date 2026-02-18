@@ -122,7 +122,7 @@ public partial class AddCalendarBindingDialog
                 return;
             }
 
-            var repository = CalendarEventRepositoryFactory.Create(credential, null);
+            var repository = CalendarEventRepositoryFactory.Create(credential);
             await repository.InitAsync();
             
             var calendars = await repository.GetAvailableCalendarsAsync();
@@ -164,7 +164,7 @@ public partial class AddCalendarBindingDialog
                 return;
             }
 
-            var repository = CalendarEventRepositoryFactory.Create(credential, null);
+            var repository = CalendarEventRepositoryFactory.Create(credential);
             await repository.InitAsync();
             
             var calendars = await repository.GetAvailableCalendarsAsync();

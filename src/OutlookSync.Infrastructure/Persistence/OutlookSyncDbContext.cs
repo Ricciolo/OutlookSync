@@ -12,8 +12,6 @@ public class OutlookSyncDbContext: DbContext
     {
         ChangeTracker.AutoDetectChangesEnabled = false;
     }
-
-    public DbSet<Calendar> Calendars => Set<Calendar>();
     
     public DbSet<Credential> Credentials => Set<Credential>();
     

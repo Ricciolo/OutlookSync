@@ -20,9 +20,14 @@ A modern, cloud-native ASP.NET Core 10 application built with Docker support and
 ```
 OutlookSync/
 ├── src/                    # Source code
-│   └── OutlookSync.Api/   # Main API application
+│   ├── OutlookSync.Application/  # Application layer (use cases)
+│   ├── OutlookSync.Domain/       # Domain layer (entities, aggregates)
+│   ├── OutlookSync.Infrastructure/ # Infrastructure (data access, services)
+│   └── OutlookSync.Web/          # Blazor web application
 ├── test/                   # Test projects
-│   └── OutlookSync.Api.Tests/
+│   ├── OutlookSync.Application.Tests/
+│   ├── OutlookSync.Domain.Tests/
+│   └── OutlookSync.Infrastructure.Tests/
 ├── docs/                   # Documentation
 ├── .github/workflows/     # CI/CD pipelines
 ├── Dockerfile            # Multi-stage Docker build
@@ -48,10 +53,10 @@ dotnet build
 dotnet test
 
 # Run the application
-dotnet run --project src/OutlookSync.Api
+dotnet run --project src/OutlookSync.Web
 ```
 
-The API will be available at:
+The web application will be available at:
 - HTTP: http://localhost:5000
 - HTTPS: https://localhost:5001
 
@@ -101,7 +106,7 @@ export ASPNETCORE_ENVIRONMENT=Production
 export PORT=8080
 
 # Run with environment variables
-dotnet run --project src/OutlookSync.Api
+dotnet run --project src/OutlookSync.Web
 ```
 
 ## 🏗️ Architecture
