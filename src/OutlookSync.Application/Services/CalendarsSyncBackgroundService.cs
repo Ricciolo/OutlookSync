@@ -1,97 +1,364 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using OutlookSync.Domain.Aggregates;
+using OutlookSync.Domain.Repositories;
 using OutlookSync.Domain.Services;
 
 namespace OutlookSync.Application.Services;
 
 /// <summary>
-/// Background service for manual calendar synchronization triggering
+/// Background service for automatic and manual calendar synchronization
 /// </summary>
 public class CalendarsSyncBackgroundService(
     IServiceScopeFactory serviceScopeFactory,
     ILogger<CalendarsSyncBackgroundService> logger) : BackgroundService, ICalendarsSyncBackgroundService
 {
-    private readonly SemaphoreSlim _syncLock = new(1, 1);
-    
-    private int _isSyncing;
+    private readonly ConcurrentDictionary<Guid, BindingSyncState> _bindingStates = new();
+    private readonly ConcurrentDictionary<Guid, SemaphoreSlim> _bindingSemaphores = new();
+    private int _activeSyncCount;
+    private CancellationTokenSource? _scheduleCancellation;
+
+    /// <summary>
+    /// Holds the sync state for a specific calendar binding
+    /// </summary>
+    private class BindingSyncState
+    {
+        public CalendarBinding Binding { get; set; } = null!;
+        public DateTime NextSyncAt { get; set; }
+        public bool IsSyncing { get; set; }
+        public Task? SyncTask { get; set; }
+    }
 
     /// <inheritdoc />
-    public bool IsSyncing => Interlocked.CompareExchange(ref _isSyncing, 0, 0) == 1;
+    public bool IsSyncing => Interlocked.CompareExchange(ref _activeSyncCount, 0, 0) > 0;
+
+    /// <inheritdoc />
+    public bool IsAutoSyncEnabled => true;
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<ScheduledBindingInfo>> GetScheduledBindingsAsync(CancellationToken cancellationToken = default)
+    {
+        var result = new List<ScheduledBindingInfo>();
+        
+        foreach (var kvp in _bindingStates)
+        {
+            var state = kvp.Value;
+            result.Add(new ScheduledBindingInfo
+            {
+                BindingId = kvp.Key,
+                Name = state.Binding.Name,
+                LastSyncAt = state.Binding.LastSyncAt,
+                NextSyncAt = state.NextSyncAt,
+                IsSyncing = state.IsSyncing,
+                IntervalMinutes = state.Binding.Configuration.Interval.Minutes
+            });
+        }
+        
+        return result.OrderBy(x => x.NextSyncAt).ToList();
+    }
+
+    /// <inheritdoc />
+    public async Task RescheduleAllAsync(CancellationToken cancellationToken = default)
+    {
+        logger.LogInformation("Rescheduling all calendar bindings");
+        
+        // Cancel all scheduled tasks
+        _scheduleCancellation?.Cancel();
+        _scheduleCancellation?.Dispose();
+        _scheduleCancellation = new CancellationTokenSource();
+
+        // Wait for existing tasks to complete
+        var existingTasks = _bindingStates.Values
+            .Where(s => s.SyncTask != null)
+            .Select(s => s.SyncTask!)
+            .ToList();
+        
+        if (existingTasks.Count > 0)
+        {
+            await Task.WhenAll(existingTasks);
+        }
+        
+        // Reload and reschedule
+        await LoadBindingsAsync(cancellationToken);
+        ScheduleAllBindings();
+    }
 
     /// <inheritdoc />
     public async Task<bool> TriggerSyncAllAsync(CancellationToken cancellationToken = default)
     {
-        if (!await _syncLock.WaitAsync(0, cancellationToken))
+        logger.LogInformation("Manual synchronization of all bindings triggered");
+        
+        await using var scope = serviceScopeFactory.CreateAsyncScope();
+        var bindingRepository = scope.ServiceProvider.GetRequiredService<ICalendarBindingRepository>();
+        var bindings = await bindingRepository.GetEnabledAsync(cancellationToken);
+        
+        var tasks = new List<Task<bool>>();
+        foreach (var binding in bindings)
         {
-            logger.LogWarning("Cannot trigger sync: synchronization already in progress");
-            return false;
+            tasks.Add(TriggerSyncBindingAsync(binding.Id, cancellationToken));
         }
-
-        try
-        {
-            Interlocked.Exchange(ref _isSyncing, 1);
-            logger.LogInformation("Manual synchronization of all bindings triggered");
-            
-            await using var scope = serviceScopeFactory.CreateAsyncScope();
-            var syncService = scope.ServiceProvider.GetRequiredService<ICalendarsSyncService>();
-            await syncService.SyncAllCalendarsAsync(cancellationToken);
-            
-            return true;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error during manually triggered sync of all bindings");
-            throw;
-        }
-        finally
-        {
-            Interlocked.Exchange(ref _isSyncing, 0);
-            _syncLock.Release();
-        }
+        
+        var results = await Task.WhenAll(tasks);
+        return results.Any(r => r);
     }
 
     /// <inheritdoc />
     public async Task<bool> TriggerSyncBindingAsync(Guid bindingId, CancellationToken cancellationToken = default)
     {
-        if (!await _syncLock.WaitAsync(0, cancellationToken))
+        logger.LogInformation("Manual synchronization of binding {BindingId} triggered", bindingId);
+        
+        // Get or create semaphore for this binding
+        var semaphore = _bindingSemaphores.GetOrAdd(bindingId, _ => new SemaphoreSlim(1, 1));
+        
+        // Try to acquire the semaphore without blocking
+        if (!await semaphore.WaitAsync(0, cancellationToken))
         {
-            logger.LogWarning("Cannot trigger sync for binding {BindingId}: synchronization already in progress", bindingId);
+            logger.LogWarning("Cannot trigger sync for binding {BindingId}: already syncing", bindingId);
             return false;
         }
 
+        // Run and await the sync (semaphore will be released in SyncBindingInternalAsync)
+        await SyncBindingInternalAsync(bindingId, cancellationToken);
+        
+        return true;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        logger.LogInformation("Calendar synchronization service started");
+
+        _scheduleCancellation = new CancellationTokenSource();
+
+        // Initial load of bindings
+        await LoadBindingsAsync(stoppingToken);
+        
+        // Schedule all bindings
+        ScheduleAllBindings();
+        
+        // Wait until cancellation is requested
         try
         {
-            Interlocked.Exchange(ref _isSyncing, 1);
-            logger.LogInformation("Manual synchronization of binding {BindingId} triggered", bindingId);
-            
+            await Task.Delay(Timeout.Infinite, stoppingToken);
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            logger.LogInformation("Calendar synchronization service stopping");
+        }
+
+        // Cancel all scheduled tasks
+        _scheduleCancellation?.Cancel();
+
+        // Wait for all active syncs to complete before shutting down
+        await WaitForActiveSyncsAsync();
+    }
+
+    private async Task LoadBindingsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
             await using var scope = serviceScopeFactory.CreateAsyncScope();
-            var syncService = scope.ServiceProvider.GetRequiredService<ICalendarsSyncService>();
-            await syncService.SyncCalendarBindingAsync(bindingId, cancellationToken);
+            var bindingRepository = scope.ServiceProvider.GetRequiredService<ICalendarBindingRepository>();
+            var bindings = await bindingRepository.GetEnabledAsync(cancellationToken);
             
-            return true;
+            logger.LogInformation("Loaded {Count} enabled calendar bindings", bindings.Count);
+            
+            _bindingStates.Clear();
+            
+            foreach (var binding in bindings)
+            {
+                var nextSyncAt = CalculateNextSyncTime(binding);
+                _bindingStates[binding.Id] = new BindingSyncState
+                {
+                    Binding = binding,
+                    NextSyncAt = nextSyncAt,
+                    IsSyncing = false
+                };
+                
+                logger.LogDebug(
+                    "Binding {BindingId} ({Name}) scheduled for next sync at {NextSyncAt}",
+                    binding.Id, binding.Name, nextSyncAt);
+            }
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error during manually triggered sync of binding {BindingId}", bindingId);
-            throw;
-        }
-        finally
-        {
-            Interlocked.Exchange(ref _isSyncing, 0);
-            _syncLock.Release();
+            logger.LogError(ex, "Error loading calendar bindings");
         }
     }
 
-    protected override Task ExecuteAsync(CancellationToken stoppingToken)
+    private void ScheduleAllBindings()
     {
-        logger.LogInformation("Calendar synchronization service started (manual trigger only)");
-        return Task.CompletedTask;
+        foreach (var kvp in _bindingStates)
+        {
+            ScheduleBinding(kvp.Key, kvp.Value);
+        }
+    }
+
+    private void ScheduleBinding(Guid bindingId, BindingSyncState state)
+    {
+        var cancellationToken = _scheduleCancellation?.Token ?? CancellationToken.None;
+        
+        state.SyncTask = Task.Run(async () =>
+        {
+            logger.LogDebug(
+                "Started scheduling loop for binding {BindingId} ({Name})",
+                bindingId, state.Binding.Name);
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    // Calculate delay until next sync
+                    var delay = state.NextSyncAt - DateTime.UtcNow;
+                    if (delay > TimeSpan.Zero)
+                    {
+                        logger.LogDebug(
+                            "Binding {BindingId} ({Name}) will sync in {Delay}",
+                            bindingId, state.Binding.Name, delay);
+
+                        await Task.Delay(delay, cancellationToken);
+                    }
+                    
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
+
+                    // Trigger sync (NextSyncAt is updated inside SyncBindingInternalAsync)
+                    await TriggerSyncBindingAsync(bindingId, cancellationToken);
+                    
+                    // Check if binding was disabled during sync
+                    if (!state.Binding.IsEnabled)
+                    {
+                        logger.LogInformation(
+                            "Binding {BindingId} was disabled, stopping scheduling loop",
+                            bindingId);
+                        break;
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    logger.LogDebug("Scheduling loop cancelled for binding {BindingId}", bindingId);
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error in scheduling loop for binding {BindingId}", bindingId);
+                    
+                    // Wait a bit before retrying to avoid tight error loop
+                    await Task.Delay(TimeSpan.FromMinutes(1), cancellationToken);
+                }
+            }
+            
+            logger.LogDebug("Scheduling loop ended for binding {BindingId}", bindingId);
+        }, cancellationToken);
+    }
+
+    private async Task SyncBindingInternalAsync(Guid bindingId, CancellationToken cancellationToken)
+    {
+        // Get the semaphore for this binding (must exist since it was created before calling this method)
+        var semaphore = _bindingSemaphores.GetOrAdd(bindingId, _ => new SemaphoreSlim(1, 1));
+        
+        if (!_bindingStates.TryGetValue(bindingId, out var state))
+        {
+            logger.LogWarning("Binding {BindingId} not found in states", bindingId);
+            semaphore.Release();
+            return;
+        }
+
+        state.IsSyncing = true;
+        Interlocked.Increment(ref _activeSyncCount);
+
+        try
+        {
+            logger.LogInformation("Starting synchronization for binding {BindingId} ({Name})", bindingId, state.Binding.Name);
+
+            await using var scope = serviceScopeFactory.CreateAsyncScope();
+            var syncService = scope.ServiceProvider.GetRequiredService<ICalendarsSyncService>();
+            var result = await syncService.SyncCalendarBindingAsync(bindingId, cancellationToken);
+
+            if (result.IsSuccess)
+            {
+                logger.LogInformation(
+                    "Synchronization completed successfully for binding {BindingId} ({Name}), {EventCount} events synced",
+                    bindingId, state.Binding.Name, result.ItemsSynced);
+            }
+            else
+            {
+                logger.LogWarning(
+                    "Synchronization failed for binding {BindingId} ({Name}): {Error}",
+                    bindingId, state.Binding.Name, result.ErrorMessage);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error during synchronization of binding {BindingId} ({Name})", bindingId, state.Binding.Name);
+        }
+        finally
+        {
+            state.IsSyncing = false;
+            Interlocked.Decrement(ref _activeSyncCount);
+            semaphore.Release();
+        }
+
+        // Reload binding from DB to get updated LastSyncAt and recalculate next sync time
+        try
+        {
+            await using var scope = serviceScopeFactory.CreateAsyncScope();
+            var bindingRepository = scope.ServiceProvider.GetRequiredService<ICalendarBindingRepository>();
+            var updatedBinding = await bindingRepository.GetByIdAsync(bindingId, cancellationToken);
+
+            if (updatedBinding != null)
+            {
+                state.Binding = updatedBinding;
+                state.NextSyncAt = CalculateNextSyncTime(updatedBinding);
+
+                logger.LogDebug(
+                    "Binding {BindingId} ({Name}) next sync scheduled at {NextSyncAt}",
+                    bindingId, state.Binding.Name, state.NextSyncAt);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error reloading binding {BindingId} after sync", bindingId);
+        }
+    }
+
+    private static DateTime CalculateNextSyncTime(CalendarBinding binding)
+    {
+        var lastSync = binding.LastSyncAt ?? DateTime.UtcNow.AddMinutes(-binding.Configuration.Interval.Minutes);
+        return lastSync.AddMinutes(binding.Configuration.Interval.Minutes);
+    }
+
+    private async Task WaitForActiveSyncsAsync()
+    {
+        var activeTasks = _bindingStates.Values
+            .Where(s => s.SyncTask != null && !s.SyncTask.IsCompleted)
+            .Select(s => s.SyncTask!)
+            .ToList();
+
+        if (activeTasks.Count > 0)
+        {
+            logger.LogInformation("Waiting for {Count} active synchronizations to complete", activeTasks.Count);
+            await Task.WhenAll(activeTasks);
+        }
     }
 
     public override void Dispose()
     {
-        _syncLock.Dispose();
+        // Cancel all scheduled tasks
+        _scheduleCancellation?.Cancel();
+        _scheduleCancellation?.Dispose();
+        
+        // Dispose all binding semaphores
+        foreach (var semaphore in _bindingSemaphores.Values)
+        {
+            semaphore.Dispose();
+        }
+
+        _bindingSemaphores.Clear();
+        
         base.Dispose();
     }
 }

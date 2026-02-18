@@ -172,7 +172,9 @@ public class CalendarBinding : Entity, IAggregateRoot
     {
         // Same credential and calendar cannot be both source and target
         if (sourceCredentialId == targetCredentialId && sourceExternalId == targetExternalId)
+        {
             return false;
+        }
             
         // Check if this creates a duplicate binding
         return !(SourceCredentialId == sourceCredentialId && 
