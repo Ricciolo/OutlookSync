@@ -121,12 +121,12 @@ public class CalendarsSyncServiceTests
         var targetCred2 = CreateTestCredential();
         
         // Setup event repository for binding1
-        var event1 = CreateTestEvent(Guid.CreateVersion7(), "Meeting 1");
-        var event2 = CreateTestEvent(Guid.CreateVersion7(), "Meeting 2");
+        var event1 = CreateTestEvent("Meeting 1");
+        var event2 = CreateTestEvent("Meeting 2");
         SetupBindingMocks(binding1, credential1, targetCred1, [event1, event2]);
         
         // Setup event repository for binding2
-        var event3 = CreateTestEvent(Guid.CreateVersion7(), "Meeting 3");
+        var event3 = CreateTestEvent("Meeting 3");
         SetupBindingMocks(binding2, credential2, targetCred2, [event3]);
 
         // Act
@@ -208,17 +208,16 @@ public class CalendarsSyncServiceTests
         var targetCred1 = CreateTestCredential();
         
         // Create an original event and a copied event
-        var originalEvent = CreateTestEvent(Guid.CreateVersion7(), "Original Meeting");
+        var originalEvent = CreateTestEvent("Original Meeting");
         var copiedEvent = new CalendarEvent
         {
             Id = Guid.CreateVersion7(),
-            CalendarId = Guid.CreateVersion7(),
             ExternalId = "copied_123",
             Subject = "[SYNCED] Copied Meeting",
             Start = DateTime.UtcNow,
             End = DateTime.UtcNow.AddHours(1),
             OriginalEventId = "original_event_id",
-            SourceCalendarId = Guid.CreateVersion7()
+            SourceCalendarBindingId = Guid.CreateVersion7()
         };
 
         SetupBindingMocks(binding1, credential1, targetCred1, [originalEvent, copiedEvent]);
@@ -247,7 +246,7 @@ public class CalendarsSyncServiceTests
         var credential1 = CreateTestCredential();
         var targetCred1 = CreateTestCredential();
         
-        var event1 = CreateTestEvent(Guid.CreateVersion7(), "Meeting");
+        var event1 = CreateTestEvent("Meeting");
         SetupBindingMocks(binding1, credential1, targetCred1, [event1]);
 
         // Act
@@ -438,12 +437,11 @@ public class CalendarsSyncServiceTests
         return credential;
     }
 
-    private static CalendarEvent CreateTestEvent(Guid calendarId, string subject)
+    private static CalendarEvent CreateTestEvent(string subject)
     {
         return new CalendarEvent
         {
             Id = Guid.CreateVersion7(),
-            CalendarId = calendarId,
             ExternalId = $"event_{Guid.NewGuid()}",
             Subject = subject,
             Start = DateTime.UtcNow.AddHours(1),
@@ -475,7 +473,7 @@ public class CalendarsSyncServiceTests
         mockRepo
             .Setup(r => r.FindCopiedEventAsync(
                 It.IsAny<string>(),
-                It.IsAny<string>(),
+                It.IsAny<Guid>(),
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync((CalendarEvent?)null);

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using OutlookSync.Infrastructure.Persistence;
 
@@ -10,9 +11,11 @@ using OutlookSync.Infrastructure.Persistence;
 namespace OutlookSync.Infrastructure.Migrations
 {
     [DbContext(typeof(OutlookSyncDbContext))]
-    partial class OutlookSyncDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260218120453_AddSyncConfigurationFields")]
+    partial class AddSyncConfigurationFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.3");
@@ -113,6 +116,9 @@ namespace OutlookSync.Infrastructure.Migrations
                             b1.Property<bool>("CopyAttachments")
                                 .HasColumnType("INTEGER");
 
+                            b1.Property<bool>("CopyConferenceLink")
+                                .HasColumnType("INTEGER");
+
                             b1.Property<bool>("CopyDescription")
                                 .HasColumnType("INTEGER");
 
@@ -150,6 +156,10 @@ namespace OutlookSync.Infrastructure.Migrations
                                 .HasMaxLength(200)
                                 .HasColumnType("TEXT");
 
+                            b1.Property<string>("TargetEventColor")
+                                .HasMaxLength(50)
+                                .HasColumnType("TEXT");
+
                             b1.Property<string>("TargetStatus")
                                 .HasMaxLength(50)
                                 .HasColumnType("TEXT");
@@ -165,6 +175,25 @@ namespace OutlookSync.Infrastructure.Migrations
 
                             b1.WithOwner()
                                 .HasForeignKey("CalendarBindingId");
+
+                            b1.OwnsOne("OutlookSync.Domain.ValueObjects.ColorExclusionRule", "ColorExclusion", b2 =>
+                                {
+                                    b2.Property<Guid>("CalendarBindingConfigurationCalendarBindingId")
+                                        .HasColumnType("TEXT");
+
+                                    b2.Property<string>("ExcludedColors")
+                                        .IsRequired()
+                                        .HasMaxLength(500)
+                                        .HasColumnType("TEXT")
+                                        .HasColumnName("ExcludedColors");
+
+                                    b2.HasKey("CalendarBindingConfigurationCalendarBindingId");
+
+                                    b2.ToTable("CalendarBindings");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("CalendarBindingConfigurationCalendarBindingId");
+                                });
 
                             b1.OwnsOne("OutlookSync.Domain.ValueObjects.RsvpExclusionRule", "RsvpExclusion", b2 =>
                                 {
@@ -225,6 +254,9 @@ namespace OutlookSync.Infrastructure.Migrations
                                     b2.WithOwner()
                                         .HasForeignKey("CalendarBindingConfigurationCalendarBindingId");
                                 });
+
+                            b1.Navigation("ColorExclusion")
+                                .IsRequired();
 
                             b1.Navigation("Interval")
                                 .IsRequired();

@@ -13,12 +13,6 @@ public class EventFilteringService
     /// </summary>
     public static bool ShouldSyncEvent(CalendarEvent calendarEvent, CalendarBindingConfiguration config)
     {
-        // Check color exclusion
-        if (config.ColorExclusion.ExcludedColors.Contains(calendarEvent.Color))
-        {
-            return false;
-        }
-        
         // Check RSVP exclusion
         if (config.RsvpExclusion.ExcludedResponses.Contains(calendarEvent.RsvpStatus))
         {
@@ -60,28 +54,28 @@ public class EventFilteringService
         return new CalendarEvent
         {
             Id = Guid.NewGuid(),
-            CalendarId = Guid.Empty, // No longer using calendar ID
             ExternalId = newExternalId,
             Subject = subject,
             Start = sourceEvent.Start,
             End = sourceEvent.End,
             Location = config.CopyLocation ? sourceEvent.Location : null,
+            IsOnlineMeeting = config.CopyLocation && sourceEvent.IsOnlineMeeting,
+            IsMeeting = config.CopyLocation && sourceEvent.IsMeeting,
             Body = TransformBody(sourceEvent, config),
             BodyType = sourceEvent.BodyType,
             Organizer = config.CopyParticipants ? sourceEvent.Organizer : null,
             IsAllDay = sourceEvent.IsAllDay,
             IsRecurring = sourceEvent.IsRecurring,
-            Color = config.TargetEventColor ?? sourceEvent.Color,
             Status = config.TargetStatus ?? sourceEvent.Status,
             RsvpStatus = sourceEvent.RsvpStatus,
-            Attendees = config.CopyParticipants ? sourceEvent.Attendees : null,
-            ConferenceLink = config.CopyConferenceLink ? sourceEvent.ConferenceLink : null,
+            RequiredAttendees = config.CopyParticipants ? sourceEvent.RequiredAttendees : [],
+            OptionalAttendees = config.CopyParticipants ? sourceEvent.OptionalAttendees : [],
             Categories = config.TargetCategory ?? sourceEvent.Categories,
             IsPrivate = config.MarkAsPrivate || sourceEvent.IsPrivate,
             HasAttachments = config.CopyAttachments && sourceEvent.HasAttachments,
-            HasReminders = TransformReminders(sourceEvent, config),
+            ReminderMinutesBeforeStart = TransformReminderMinutes(sourceEvent, config),
             OriginalEventId = sourceEvent.ExternalId,
-            SourceCalendarId = sourceEvent.CalendarId
+            SourceCalendarBindingId = sourceEvent.SourceCalendarBindingId
         };
     }
     
@@ -90,7 +84,9 @@ public class EventFilteringService
         return config.TitleHandling switch
         {
             TitleHandling.Clone => originalTitle,
-            TitleHandling.Rename => config.CustomTitle ?? originalTitle,
+            TitleHandling.Rename => string.IsNullOrWhiteSpace(config.CustomTitle) 
+                ? originalTitle 
+                : $"{config.CustomTitle} {originalTitle}",
             TitleHandling.Hide => config.CustomTitle ?? $"Event from {sourceCalendarName}",
             _ => originalTitle
         };
@@ -115,15 +111,14 @@ public class EventFilteringService
         
         return body;
     }
-    
-    private static bool TransformReminders(CalendarEvent sourceEvent, CalendarBindingConfiguration config)
+
+    private static int? TransformReminderMinutes(CalendarEvent sourceEvent, CalendarBindingConfiguration config)
     {
         return config.ReminderHandling switch
         {
-            ReminderHandling.Copy => sourceEvent.HasReminders,
-            ReminderHandling.Disable => false,
-            ReminderHandling.Move => sourceEvent.HasReminders,
-            _ => sourceEvent.HasReminders
+            ReminderHandling.Copy => sourceEvent.ReminderMinutesBeforeStart,
+            ReminderHandling.Disable => null,
+            _ => sourceEvent.ReminderMinutesBeforeStart
         };
     }
 }

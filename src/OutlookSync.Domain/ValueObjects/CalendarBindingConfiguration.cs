@@ -11,12 +11,12 @@ public enum TitleHandling
     Clone,
     
     /// <summary>
-    /// Rename the title with a custom prefix/suffix
+    /// Add a custom prefix before the original title
     /// </summary>
     Rename,
     
     /// <summary>
-    /// Hide the original title and use a generic placeholder
+    /// Hide the original title and use a custom placeholder
     /// </summary>
     Hide
 }
@@ -34,12 +34,7 @@ public enum ReminderHandling
     /// <summary>
     /// Disable reminders on the target event
     /// </summary>
-    Disable,
-    
-    /// <summary>
-    /// Remove reminders from the original event (move to copy only)
-    /// </summary>
-    Move
+    Disable
 }
 
 /// <summary>
@@ -63,68 +58,6 @@ public enum EventStatus
     Tentative,
     OutOfOffice,
     WorkingElsewhere
-}
-
-/// <summary>
-/// Calendar event color for filtering
-/// </summary>
-public enum EventColor
-{
-    None,
-    Red,
-    Orange,
-    Yellow,
-    Green,
-    Blue,
-    Purple,
-    Pink,
-    Brown,
-    Gray,
-    Black
-}
-
-/// <summary>
-/// Configuration for event exclusion rules based on color
-/// </summary>
-public record ColorExclusionRule
-{
-    /// <summary>
-    /// Colors to exclude from synchronization
-    /// </summary>
-    public IReadOnlyCollection<EventColor> ExcludedColors { get; init; } = Array.Empty<EventColor>();
-    
-    /// <summary>
-    /// Creates a rule that excludes no colors (sync all)
-    /// </summary>
-    public static ColorExclusionRule None() => new();
-    
-    /// <summary>
-    /// Creates a rule that excludes specific colors
-    /// </summary>
-    public static ColorExclusionRule Exclude(params EventColor[] colors) => new()
-    {
-        ExcludedColors = colors
-    };
-    
-    /// <summary>
-    /// Serializes excluded colors to a comma-separated string for storage
-    /// </summary>
-    public string ToSerializedString() => string.Join(",", ExcludedColors);
-    
-    /// <summary>
-    /// Deserializes excluded colors from a comma-separated string
-    /// </summary>
-    public static ColorExclusionRule FromSerializedString(string? serialized)
-    {
-        if (string.IsNullOrWhiteSpace(serialized))
-            return None();
-            
-        var colors = serialized.Split(',', StringSplitOptions.RemoveEmptyEntries)
-            .Select(s => Enum.Parse<EventColor>(s.Trim()))
-            .ToArray();
-            
-        return Exclude(colors);
-    }
 }
 
 /// <summary>
@@ -161,7 +94,9 @@ public record RsvpExclusionRule
     public static RsvpExclusionRule FromSerializedString(string? serialized)
     {
         if (string.IsNullOrWhiteSpace(serialized))
+        {
             return None();
+        }
             
         var responses = serialized.Split(',', StringSplitOptions.RemoveEmptyEntries)
             .Select(s => Enum.Parse<RsvpResponse>(s.Trim()))
@@ -205,7 +140,9 @@ public record StatusExclusionRule
     public static StatusExclusionRule FromSerializedString(string? serialized)
     {
         if (string.IsNullOrWhiteSpace(serialized))
+        {
             return None();
+        }
             
         var statuses = serialized.Split(',', StringSplitOptions.RemoveEmptyEntries)
             .Select(s => Enum.Parse<EventStatus>(s.Trim()))
@@ -213,6 +150,25 @@ public record StatusExclusionRule
             
         return Exclude(statuses);
     }
+}
+
+/// <summary>
+/// Sync interval configuration
+/// </summary>
+public record SyncInterval
+{
+    public required int Minutes { get; init; }
+    
+    public string? CronExpression { get; init; }
+    
+    public static SyncInterval Every15Minutes() => new() { Minutes = 15, CronExpression = "*/15 * * * *" };
+    
+    public static SyncInterval Every30Minutes() => new() { Minutes = 30, CronExpression = "*/30 * * * *" };
+    
+    public static SyncInterval Hourly() => new() { Minutes = 60, CronExpression = "0 * * * *" };
+    
+    public static SyncInterval Custom(int minutes, string? cronExpression = null) => 
+        new() { Minutes = minutes, CronExpression = cronExpression };
 }
 
 /// <summary>
@@ -227,7 +183,7 @@ public record CalendarBindingConfiguration
     public TitleHandling TitleHandling { get; init; } = TitleHandling.Clone;
     
     /// <summary>
-    /// Custom title prefix or full replacement when using Rename or Hide
+    /// Custom title prefix when using Rename, or full replacement text when using Hide
     /// </summary>
     public string? CustomTitle { get; init; }
     
@@ -245,16 +201,6 @@ public record CalendarBindingConfiguration
     /// Whether to copy location
     /// </summary>
     public bool CopyLocation { get; init; } = true;
-    
-    /// <summary>
-    /// Whether to copy conference link
-    /// </summary>
-    public bool CopyConferenceLink { get; init; } = true;
-    
-    /// <summary>
-    /// Event color to apply to synchronized events (None means keep original)
-    /// </summary>
-    public EventColor? TargetEventColor { get; init; }
     
     /// <summary>
     /// Category to apply to synchronized events
@@ -292,11 +238,6 @@ public record CalendarBindingConfiguration
     public bool CustomTagInTitle { get; init; } = true;
     
     /// <summary>
-    /// Exclusion rule based on event color
-    /// </summary>
-    public ColorExclusionRule ColorExclusion { get; init; } = ColorExclusionRule.None();
-    
-    /// <summary>
     /// Exclusion rule based on RSVP response
     /// </summary>
     public RsvpExclusionRule RsvpExclusion { get; init; } = RsvpExclusionRule.None();
@@ -307,21 +248,34 @@ public record CalendarBindingConfiguration
     public StatusExclusionRule StatusExclusion { get; init; } = StatusExclusionRule.None();
     
     /// <summary>
+    /// Synchronization interval configuration
+    /// </summary>
+    public required SyncInterval Interval { get; init; }
+    
+    /// <summary>
+    /// Gets the number of days forward to synchronize
+    /// </summary>
+    public int SyncDaysForward { get; init; } = 30;
+    
+    /// <summary>
     /// Creates a default configuration that copies all fields
     /// </summary>
-    public static CalendarBindingConfiguration Default() => new();
+    public static CalendarBindingConfiguration Default() => new() 
+    { 
+        Interval = SyncInterval.Every30Minutes() 
+    };
     
     /// <summary>
     /// Creates a privacy-focused configuration that hides sensitive information
     /// </summary>
     public static CalendarBindingConfiguration PrivacyFocused() => new()
     {
+        Interval = SyncInterval.Every30Minutes(),
         TitleHandling = TitleHandling.Hide,
         CustomTitle = "Busy",
         CopyDescription = false,
         CopyParticipants = false,
         CopyLocation = false,
-        CopyConferenceLink = false,
         CopyAttachments = false,
         MarkAsPrivate = true,
         TargetStatus = EventStatus.Busy

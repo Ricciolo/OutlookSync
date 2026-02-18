@@ -19,6 +19,11 @@ public static class ServiceCollectionExtensions
         // Application Services
         services.AddScoped<ICalendarsSyncService, CalendarsSyncService>();
 
+        // Background Services - registered as singleton to maintain state across requests
+        services.AddSingleton<CalendarsSyncBackgroundService>();
+        services.AddSingleton<ICalendarsSyncBackgroundService>(sp => sp.GetRequiredService<CalendarsSyncBackgroundService>());
+        services.AddHostedService(sp => sp.GetRequiredService<CalendarsSyncBackgroundService>());
+
         return services;
     }
 }

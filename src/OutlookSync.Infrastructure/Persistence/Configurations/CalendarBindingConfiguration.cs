@@ -55,12 +55,6 @@ public class CalendarBindingConfiguration : IEntityTypeConfiguration<CalendarBin
             
             config.Property(c => c.CopyLocation).IsRequired();
             
-            config.Property(c => c.CopyConferenceLink).IsRequired();
-            
-            config.Property(c => c.TargetEventColor)
-                .HasConversion<string>()
-                .HasMaxLength(50);
-            
             config.Property(c => c.TargetCategory).HasMaxLength(200);
             
             config.Property(c => c.TargetStatus)
@@ -79,20 +73,6 @@ public class CalendarBindingConfiguration : IEntityTypeConfiguration<CalendarBin
             config.Property(c => c.CustomTag).HasMaxLength(200);
             
             config.Property(c => c.CustomTagInTitle).IsRequired();
-            
-            // Configure ColorExclusionRule as owned
-            config.OwnsOne(c => c.ColorExclusion, colorRule =>
-            {
-                colorRule.Property(cr => cr.ExcludedColors)
-                    .HasMaxLength(500)
-                    .HasColumnName("ExcludedColors")
-                    .HasConversion(
-                        v => string.Join(",", v),
-                        v => v.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                            .Select(s => Enum.Parse<EventColor>(s.Trim()))
-                            .ToArray()
-                    );
-            });
             
             // Configure RsvpExclusionRule as owned
             config.OwnsOne(c => c.RsvpExclusion, rsvpRule =>
@@ -121,6 +101,22 @@ public class CalendarBindingConfiguration : IEntityTypeConfiguration<CalendarBin
                             .ToArray()
                     );
             });
+            
+            // Configure SyncInterval as owned
+            config.OwnsOne(c => c.Interval, interval =>
+            {
+                interval.Property(i => i.Minutes)
+                    .IsRequired()
+                    .HasColumnName("SyncIntervalMinutes");
+                
+                interval.Property(i => i.CronExpression)
+                    .HasMaxLength(100)
+                    .HasColumnName("SyncCronExpression");
+            });
+            
+            config.Property(c => c.SyncDaysForward)
+                .IsRequired()
+                .HasDefaultValue(30);
         });
         
         builder.Property(cb => cb.CreatedAt).IsRequired();

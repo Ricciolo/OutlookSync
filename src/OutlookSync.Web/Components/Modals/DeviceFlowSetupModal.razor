@@ -1,8 +1,4 @@
-@using OutlookSync.Domain.Services
-@inject OutlookSync.Domain.Services.ICredentialsService CredentialsService
-@inject OutlookSync.Domain.Repositories.ICredentialRepository CredentialRepository
-@inject OutlookSync.Domain.Repositories.IUnitOfWork UnitOfWork
-@inject Microsoft.JSInterop.IJSRuntime JSRuntime
+@rendermode InteractiveServer
 
 @if (IsVisible)
 {
@@ -34,7 +30,7 @@
 
             <!-- Step 1: Friendly name -->
             @if (_currentStep == DeviceFlowStep.FriendlyName)
-            {{
+            {
                 <div class="space-y-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">

@@ -10,6 +10,10 @@ public partial class CalendarBindings
 {
     private List<CalendarBinding>? _bindings;
     private bool _isLoading = true;
+    private bool _isSyncing;
+    private Guid? _syncingBindingId;
+    private string? _syncMessage;
+    private bool _syncSuccess;
     private AddCalendarBindingDialog? _addBindingDialog;
     private EditCalendarBindingDialog? _editBindingDialog;
 
@@ -24,7 +28,7 @@ public partial class CalendarBindings
         _isLoading = true;
         try
         {
-            _bindings = await CalendarBindingRepository.Query.ToListAsync();
+            _bindings = await CalendarBindingRepository.Query.AsNoTracking().ToListAsync();
         }
         finally
         {
@@ -81,5 +85,97 @@ public partial class CalendarBindings
         {
             await _editBindingDialog.OpenAsync(binding);
         }
+    }
+
+    private async Task SyncAllBindingsAsync()
+    {
+        if (SyncService.IsSyncing)
+        {
+            _syncMessage = "A synchronization is already in progress";
+            _syncSuccess = false;
+            return;
+        }
+
+        _isSyncing = true;
+        _syncingBindingId = null;
+        _syncMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var triggered = await SyncService.TriggerSyncAllAsync();
+            
+            if (triggered)
+            {
+                _syncMessage = "All calendar bindings synchronized successfully";
+                _syncSuccess = true;
+                await LoadBindingsAsync();
+            }
+            else
+            {
+                _syncMessage = "Cannot start synchronization: another sync is in progress";
+                _syncSuccess = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            _syncMessage = $"Synchronization failed: {ex.Message}";
+            _syncSuccess = false;
+        }
+        finally
+        {
+            _isSyncing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SyncBindingAsync(Guid bindingId)
+    {
+        if (SyncService.IsSyncing)
+        {
+            _syncMessage = "A synchronization is already in progress";
+            _syncSuccess = false;
+            return;
+        }
+
+        _isSyncing = true;
+        _syncingBindingId = bindingId;
+        _syncMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var triggered = await SyncService.TriggerSyncBindingAsync(bindingId);
+            
+            if (triggered)
+            {
+                var binding = _bindings?.FirstOrDefault(b => b.Id == bindingId);
+                var bindingName = binding?.Name ?? "Binding";
+                _syncMessage = $"{bindingName} synchronized successfully";
+                _syncSuccess = true;
+                await LoadBindingsAsync();
+            }
+            else
+            {
+                _syncMessage = "Cannot start synchronization: another sync is in progress";
+                _syncSuccess = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            _syncMessage = $"Synchronization failed: {ex.Message}";
+            _syncSuccess = false;
+        }
+        finally
+        {
+            _isSyncing = false;
+            _syncingBindingId = null;
+            StateHasChanged();
+        }
+    }
+
+    private void ClearSyncMessage()
+    {
+        _syncMessage = null;
     }
 }

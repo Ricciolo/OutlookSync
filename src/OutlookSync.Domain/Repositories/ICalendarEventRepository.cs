@@ -36,16 +36,16 @@ public interface ICalendarEventRepository
     Task<IReadOnlyList<CalendarEvent>> GetAllAsync(string calendarExternalId, CancellationToken cancellationToken = default);
     
     /// <summary>
-    /// Finds a copied event in the target calendar by its original event external ID and source calendar external ID
+    /// Finds a copied event in the target calendar by its original event external ID and source calendar binding ID
     /// </summary>
     /// <param name="originalEventExternalId">The external ID of the original event</param>
-    /// <param name="sourceCalendarExternalId">The external ID of the source calendar</param>
+    /// <param name="sourceCalendarBindingId">The Guid of the source calendar binding</param>
     /// <param name="targetCalendarExternalId">The external ID of the target calendar where to search</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>The copied event if found, otherwise null</returns>
     Task<CalendarEvent?> FindCopiedEventAsync(
         string originalEventExternalId, 
-        string sourceCalendarExternalId,
+        Guid sourceCalendarBindingId,
         string targetCalendarExternalId,
         CancellationToken cancellationToken = default);
     
@@ -56,4 +56,33 @@ public interface ICalendarEventRepository
     /// <param name="calendarExternalId">The external ID of the calendar to add the event to</param>
     /// <param name="cancellationToken">Cancellation token</param>
     Task AddAsync(CalendarEvent calendarEvent, string calendarExternalId, CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Updates an existing calendar event
+    /// </summary>
+    /// <param name="calendarEvent">The event with updated data</param>
+    /// <param name="calendarExternalId">The external ID of the calendar containing the event</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    Task UpdateAsync(CalendarEvent calendarEvent, string calendarExternalId, CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Gets all events that were copied from a specific source calendar binding
+    /// </summary>
+    /// <param name="sourceCalendarBindingId">The Guid of the source calendar binding</param>
+    /// <param name="targetCalendarExternalId">The external ID of the target calendar where to search</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>List of copied events</returns>
+    Task<IReadOnlyList<CalendarEvent>> GetCopiedEventsAsync(
+        Guid sourceCalendarBindingId,
+        string targetCalendarExternalId,
+        CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Deletes a calendar event
+    /// </summary>
+    /// <param name="eventExternalId">The external ID of the event to delete</param>
+    /// <param name="calendarExternalId">The external ID of the calendar containing the event</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>True if the event was deleted, false if not found</returns>
+    Task<bool> DeleteAsync(string eventExternalId, string calendarExternalId, CancellationToken cancellationToken = default);
 }

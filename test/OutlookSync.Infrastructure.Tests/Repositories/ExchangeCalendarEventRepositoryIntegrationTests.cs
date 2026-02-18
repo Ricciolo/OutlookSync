@@ -199,9 +199,8 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
             Location = "Test Location",
             IsAllDay = false,
             IsRecurring = false,
-            CalendarId = Guid.CreateVersion7(),
             OriginalEventId = null,
-            SourceCalendarId = null
+            SourceCalendarBindingId = null
         };
 
         // Act
@@ -230,7 +229,7 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
         await repository.InitAsync();
 
         var originalEventId = "original-event-12345";
-        var sourceCalendarId = Guid.CreateVersion7();
+        var sourceCalendarBindingId = Guid.CreateVersion7();
 
         var copiedEvent = new CalendarEvent
         {
@@ -242,9 +241,8 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
             Location = "Copied Location",
             IsAllDay = false,
             IsRecurring = false,
-            CalendarId = Guid.CreateVersion7(),
             OriginalEventId = originalEventId,
-            SourceCalendarId = sourceCalendarId
+            SourceCalendarBindingId = sourceCalendarBindingId
         };
 
         // Act
@@ -272,7 +270,7 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
 
         await repository.InitAsync();
 
-        var sourceCalendarExternalId = "source-cal-123";
+        var sourceCalendarBindingId = Guid.CreateVersion7();
         var originalEventExternalId = $"test-original-{Guid.CreateVersion7()}";
 
         // First create a copied event
@@ -286,9 +284,8 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
             Location = "Find Test Location",
             IsAllDay = false,
             IsRecurring = false,
-            CalendarId = Guid.CreateVersion7(),
             OriginalEventId = originalEventExternalId,
-            SourceCalendarId = Guid.CreateVersion7()
+            SourceCalendarBindingId = sourceCalendarBindingId
         };
 
         await repository.AddAsync(copiedEvent, s_calendarExternalId);
@@ -296,7 +293,7 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
         // Act
         var foundEvent = await repository.FindCopiedEventAsync(
             originalEventExternalId, 
-            sourceCalendarExternalId,
+            sourceCalendarBindingId,
             s_calendarExternalId);
 
         // Assert

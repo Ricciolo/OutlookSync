@@ -24,14 +24,14 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
     private static readonly Guid PropertySetId = new("{C11FF724-AA03-4555-9952-8FA248A11C3E}");
     private static readonly ExtendedPropertyDefinition OriginalEventIdProperty =
         new(PropertySetId, "OriginalEventId", MapiPropertyType.String);
-    private static readonly ExtendedPropertyDefinition SourceCalendarIdProperty =
-        new(PropertySetId, "SourceCalendarId", MapiPropertyType.String);
+    private static readonly ExtendedPropertyDefinition SourceCalendarBindingIdProperty =
+        new(PropertySetId, "SourceCalendarBindingId", MapiPropertyType.String);
 
     private static readonly PropertySet s_fullPropertySet = new(BasePropertySet.FirstClassProperties)
-                                                            {
-                                                                OriginalEventIdProperty,
-                                                                SourceCalendarIdProperty
-                                                            };
+    {
+        OriginalEventIdProperty,
+        SourceCalendarBindingIdProperty
+    };
 
     private readonly Credential _credential;
     private readonly ILogger<ExchangeCalendarEventRepository> _logger;
@@ -263,20 +263,19 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
     /// <inheritdoc/>
     public async Task<DomainCalendarEvent?> FindCopiedEventAsync(
         string originalEventExternalId,
-        string sourceCalendarExternalId,
+        Guid sourceCalendarBindingId,
         string targetCalendarExternalId,
         CancellationToken cancellationToken = default)
     {
         EnsureInitialized();
         
         ArgumentException.ThrowIfNullOrEmpty(originalEventExternalId, nameof(originalEventExternalId));
-        ArgumentException.ThrowIfNullOrEmpty(sourceCalendarExternalId, nameof(sourceCalendarExternalId));
         ArgumentException.ThrowIfNullOrEmpty(targetCalendarExternalId, nameof(targetCalendarExternalId));
 
         _logger.LogInformation(
-            "Finding copied event in target calendar {TargetCalendarExternalId} from source calendar {SourceCalendarExternalId} with original event ID {OriginalEventId}",
+            "Finding copied event in target calendar {TargetCalendarExternalId} from source calendar binding {SourceCalendarBindingId} with original event ID {OriginalEventId}",
             targetCalendarExternalId,
-            sourceCalendarExternalId,
+            sourceCalendarBindingId,
             originalEventExternalId);
 
         return await ExecuteWithRetryAsync(async () =>
@@ -286,15 +285,15 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
                 OriginalEventIdProperty,
                 originalEventExternalId);
 
-            var sourceCalendarIdFilter = new SearchFilter.IsEqualTo(
-                SourceCalendarIdProperty,
-                sourceCalendarExternalId);
+            var sourceCalendarBindingIdFilter = new SearchFilter.IsEqualTo(
+                SourceCalendarBindingIdProperty,
+                sourceCalendarBindingId.ToString());
 
             // Combine filters with AND
             var combinedFilter = new SearchFilter.SearchFilterCollection(
                 LogicalOperator.And,
                 originalEventIdFilter,
-                sourceCalendarIdFilter);
+                sourceCalendarBindingIdFilter);
 
             // Create view with extended properties
             var view = new ItemView(1)
@@ -302,7 +301,7 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
                 PropertySet = new PropertySet(
                     BasePropertySet.IdOnly,
                     OriginalEventIdProperty,
-                    SourceCalendarIdProperty)
+                    SourceCalendarBindingIdProperty)
             };
 
             var folderId = new FolderId(targetCalendarExternalId);
@@ -343,18 +342,84 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
                     calendarEvent.Body ?? string.Empty),
                 Start = calendarEvent.Start,
                 End = calendarEvent.End,
-                Location = calendarEvent.Location ?? string.Empty,
                 IsAllDayEvent = calendarEvent.IsAllDay
             };
+
+            // Set location
+            appointment.Location = calendarEvent.Location ?? string.Empty;
+
+            // Set status (Free/Busy/Tentative/etc.)
+            appointment.LegacyFreeBusyStatus = calendarEvent.Status switch
+            {
+                EventStatus.Free => LegacyFreeBusyStatus.Free,
+                EventStatus.Tentative => LegacyFreeBusyStatus.Tentative,
+                EventStatus.Busy => LegacyFreeBusyStatus.Busy,
+                EventStatus.OutOfOffice => LegacyFreeBusyStatus.OOF,
+                EventStatus.WorkingElsewhere => LegacyFreeBusyStatus.WorkingElsewhere,
+                _ => LegacyFreeBusyStatus.Busy
+            };
+
+            // Set sensitivity (privacy)
+            if (calendarEvent.IsPrivate)
+            {
+                appointment.Sensitivity = Sensitivity.Private;
+            }
+
+            // Set categories if present
+            if (!string.IsNullOrWhiteSpace(calendarEvent.Categories))
+            {
+                var categoryList = calendarEvent.Categories
+                    .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .ToList();
+                foreach (var category in categoryList)
+                {
+                    appointment.Categories.Add(category);
+                }
+            }
+
+            // Add required attendees
+            if (calendarEvent.RequiredAttendees.Count > 0)
+            {
+                foreach (var email in calendarEvent.RequiredAttendees)
+                {
+                    if (!string.IsNullOrWhiteSpace(email))
+                    {
+                        appointment.RequiredAttendees.Add(new Attendee { Address = email });
+                    }
+                }
+            }
+
+            // Add optional attendees
+            if (calendarEvent.OptionalAttendees.Count > 0)
+            {
+                foreach (var email in calendarEvent.OptionalAttendees)
+                {
+                    if (!string.IsNullOrWhiteSpace(email))
+                    {
+                        appointment.OptionalAttendees.Add(new Attendee { Address = email });
+                    }
+                }
+            }
+
+            // Set reminders
+            if (calendarEvent.ReminderMinutesBeforeStart.HasValue)
+            {
+                appointment.IsReminderSet = true;
+                appointment.ReminderMinutesBeforeStart = calendarEvent.ReminderMinutesBeforeStart.Value;
+            }
+            else
+            {
+                appointment.IsReminderSet = false;
+            }
 
             // Store metadata about copied events using extended properties
             if (calendarEvent.IsCopiedEvent && calendarEvent.OriginalEventId != null)
             {
                 appointment.SetExtendedProperty(OriginalEventIdProperty, calendarEvent.OriginalEventId);
 
-                if (calendarEvent.SourceCalendarId.HasValue)
+                if (calendarEvent.SourceCalendarBindingId.HasValue)
                 {
-                    appointment.SetExtendedProperty(SourceCalendarIdProperty, calendarEvent.SourceCalendarId.Value.ToString());
+                    appointment.SetExtendedProperty(SourceCalendarBindingIdProperty, calendarEvent.SourceCalendarBindingId.Value.ToString());
                 }
             }
 
@@ -366,6 +431,206 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
             _logger.LogInformation(
                 "Calendar event created with ID: {EventId}",
                 appointment.Id.UniqueId);
+        }, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async System.Threading.Tasks.Task UpdateAsync(DomainCalendarEvent calendarEvent, string calendarExternalId, CancellationToken cancellationToken = default)
+    {
+        EnsureInitialized();
+        ArgumentNullException.ThrowIfNull(calendarEvent, nameof(calendarEvent));
+        ArgumentException.ThrowIfNullOrWhiteSpace(calendarExternalId, nameof(calendarExternalId));
+        
+        if (string.IsNullOrWhiteSpace(calendarEvent.ExternalId))
+        {
+            throw new ArgumentException("CalendarEvent must have an ExternalId to be updated", nameof(calendarEvent));
+        }
+
+        _logger.LogInformation(
+            "Updating calendar event '{Subject}' with ID {EventId}",
+            calendarEvent.Subject,
+            calendarEvent.ExternalId);
+
+        await ExecuteWithRetryAsync(async () =>
+        {
+            // Bind to the existing appointment
+            var appointment = await Appointment.Bind(_service!, new ItemId(calendarEvent.ExternalId), s_fullPropertySet);
+
+            // Update basic properties
+            appointment.Subject = calendarEvent.Subject;
+            appointment.Body = new MessageBody(
+                calendarEvent.BodyType == CalendarEventBodyType.Html ? BodyType.HTML : BodyType.Text,
+                calendarEvent.Body ?? string.Empty);
+            appointment.Start = calendarEvent.Start;
+            appointment.End = calendarEvent.End;
+            appointment.IsAllDayEvent = calendarEvent.IsAllDay;
+
+            // Update location
+            appointment.Location = calendarEvent.Location ?? string.Empty;
+
+            // Update status (Free/Busy/Tentative/etc.)
+            appointment.LegacyFreeBusyStatus = calendarEvent.Status switch
+            {
+                EventStatus.Free => LegacyFreeBusyStatus.Free,
+                EventStatus.Tentative => LegacyFreeBusyStatus.Tentative,
+                EventStatus.Busy => LegacyFreeBusyStatus.Busy,
+                EventStatus.OutOfOffice => LegacyFreeBusyStatus.OOF,
+                EventStatus.WorkingElsewhere => LegacyFreeBusyStatus.WorkingElsewhere,
+                _ => LegacyFreeBusyStatus.Busy
+            };
+
+            // Update sensitivity (privacy)
+            appointment.Sensitivity = calendarEvent.IsPrivate ? Sensitivity.Private : Sensitivity.Normal;
+
+            // Update categories
+            appointment.Categories.Clear();
+            if (!string.IsNullOrWhiteSpace(calendarEvent.Categories))
+            {
+                var categoryList = calendarEvent.Categories
+                    .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .ToList();
+                foreach (var category in categoryList)
+                {
+                    appointment.Categories.Add(category);
+                }
+            }
+
+            // Update attendees
+            appointment.RequiredAttendees.Clear();
+            appointment.OptionalAttendees.Clear();
+            
+            // Add required attendees
+            if (calendarEvent.RequiredAttendees.Count > 0)
+            {
+                foreach (var email in calendarEvent.RequiredAttendees)
+                {
+                    if (!string.IsNullOrWhiteSpace(email))
+                    {
+                        appointment.RequiredAttendees.Add(new Attendee { Address = email });
+                    }
+                }
+            }
+
+            // Add optional attendees
+            if (calendarEvent.OptionalAttendees.Count > 0)
+            {
+                foreach (var email in calendarEvent.OptionalAttendees)
+                {
+                    if (!string.IsNullOrWhiteSpace(email))
+                    {
+                        appointment.OptionalAttendees.Add(new Attendee { Address = email });
+                    }
+                }
+            }
+
+            // Update reminders
+            if (calendarEvent.ReminderMinutesBeforeStart.HasValue)
+            {
+                appointment.IsReminderSet = true;
+                appointment.ReminderMinutesBeforeStart = calendarEvent.ReminderMinutesBeforeStart.Value;
+            }
+            else
+            {
+                appointment.IsReminderSet = false;
+            }
+
+            // Update extended properties for copied events
+            if (calendarEvent.IsCopiedEvent && calendarEvent.OriginalEventId != null)
+            {
+                appointment.SetExtendedProperty(OriginalEventIdProperty, calendarEvent.OriginalEventId);
+                if (calendarEvent.SourceCalendarBindingId.HasValue)
+                {
+                    appointment.SetExtendedProperty(SourceCalendarBindingIdProperty, calendarEvent.SourceCalendarBindingId.Value.ToString());
+                }
+            }
+
+            // Save changes
+            await appointment.Update(ConflictResolutionMode.AlwaysOverwrite);
+
+            _logger.LogInformation(
+                "Calendar event updated successfully: {EventId}",
+                calendarEvent.ExternalId);
+        }, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<DomainCalendarEvent>> GetCopiedEventsAsync(
+        Guid sourceCalendarBindingId,
+        string targetCalendarExternalId,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureInitialized();
+        
+        ArgumentException.ThrowIfNullOrEmpty(targetCalendarExternalId, nameof(targetCalendarExternalId));
+
+        _logger.LogInformation(
+            "Getting all copied events in target calendar {TargetCalendarExternalId} from source calendar binding {SourceCalendarBindingId}",
+            targetCalendarExternalId,
+            sourceCalendarBindingId);
+
+        return await ExecuteWithRetryAsync(async () =>
+        {
+            var sourceCalendarBindingIdFilter = new SearchFilter.IsEqualTo(
+                SourceCalendarBindingIdProperty,
+                sourceCalendarBindingId.ToString());
+
+            var view = new ItemView(1000)
+            {
+                PropertySet = new PropertySet(
+                    BasePropertySet.IdOnly,
+                    OriginalEventIdProperty,
+                    SourceCalendarBindingIdProperty)
+            };
+
+            var folderId = new FolderId(targetCalendarExternalId);
+            var copiedEvents = new List<DomainCalendarEvent>();
+            
+            FindItemsResults<Item>? results;
+            do
+            {
+                results = await _service!.FindItems(folderId, sourceCalendarBindingIdFilter, view);
+                
+                foreach (var item in results.Items.OfType<Appointment>())
+                {
+                    await item.Load(s_fullPropertySet, cancellationToken);
+                    copiedEvents.Add(MapToCalendarEvent(item));
+                }
+                
+                view.Offset += results.Items.Count;
+            } while (results.MoreAvailable);
+
+            _logger.LogInformation("Found {Count} copied events", copiedEvents.Count);
+            return (IReadOnlyList<DomainCalendarEvent>)copiedEvents;
+        }, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task<bool> DeleteAsync(string eventExternalId, string calendarExternalId, CancellationToken cancellationToken = default)
+    {
+        EnsureInitialized();
+        ArgumentException.ThrowIfNullOrEmpty(eventExternalId, nameof(eventExternalId));
+        ArgumentException.ThrowIfNullOrEmpty(calendarExternalId, nameof(calendarExternalId));
+
+        _logger.LogInformation(
+            "Deleting event {EventExternalId} from calendar {CalendarExternalId}",
+            eventExternalId,
+            calendarExternalId);
+
+        return await ExecuteWithRetryAsync(async () =>
+        {
+            try
+            {
+                var appointment = await Appointment.Bind(_service!, new ItemId(eventExternalId));
+                await appointment.Delete(DeleteMode.MoveToDeletedItems);
+                
+                _logger.LogInformation("Event {EventExternalId} deleted successfully", eventExternalId);
+                return true;
+            }
+            catch (ServiceResponseException ex) when (ex.ErrorCode == ServiceError.ErrorItemNotFound)
+            {
+                _logger.LogWarning("Event {EventExternalId} not found, possibly already deleted", eventExternalId);
+                return false;
+            }
         }, cancellationToken);
     }
 
@@ -466,20 +731,60 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
     {
         // Read metadata from extended properties
         var hasOriginalEventId = appointment.TryGetProperty(OriginalEventIdProperty, out string? originalEventId);
-        var hasSourceCalendarId = appointment.TryGetProperty(SourceCalendarIdProperty, out string? sourceCalendarIdStr);
+        var hasSourceCalendarBindingId = appointment.TryGetProperty(SourceCalendarBindingIdProperty, out string? sourceCalendarBindingIdStr);
 
-        Guid? sourceCalendarId = null;
-        if (hasSourceCalendarId && !string.IsNullOrEmpty(sourceCalendarIdStr) && Guid.TryParse(sourceCalendarIdStr, out var parsedId))
+        Guid? sourceCalendarBindingId = null;
+        if (hasSourceCalendarBindingId && !string.IsNullOrEmpty(sourceCalendarBindingIdStr) && Guid.TryParse(sourceCalendarBindingIdStr, out var parsedId))
         {
-            sourceCalendarId = parsedId;
+            sourceCalendarBindingId = parsedId;
         }
 
         var isCopiedEvent = hasOriginalEventId && !string.IsNullOrEmpty(originalEventId);
-
+        
         // Determine body type from Exchange appointment
         var bodyType = appointment.Body.BodyType == BodyType.HTML 
             ? CalendarEventBodyType.Html 
             : CalendarEventBodyType.Text;
+
+        // Map LegacyFreeBusyStatus to EventStatus
+        var status = appointment.LegacyFreeBusyStatus switch
+        {
+            LegacyFreeBusyStatus.Free => EventStatus.Free,
+            LegacyFreeBusyStatus.Tentative => EventStatus.Tentative,
+            LegacyFreeBusyStatus.Busy => EventStatus.Busy,
+            LegacyFreeBusyStatus.OOF => EventStatus.OutOfOffice,
+            LegacyFreeBusyStatus.WorkingElsewhere => EventStatus.WorkingElsewhere,
+            _ => EventStatus.Busy
+        };
+
+        // Map MyResponseType to RsvpResponse
+        var rsvpStatus = appointment.MyResponseType switch
+        {
+            MeetingResponseType.Accept => RsvpResponse.Yes,
+            MeetingResponseType.Tentative => RsvpResponse.Maybe,
+            MeetingResponseType.Decline => RsvpResponse.No,
+            _ => RsvpResponse.None // Unknown, Organizer, NoResponseReceived
+        };
+
+        // Separate required and optional attendees
+        var requiredAttendees = appointment.RequiredAttendees?.Count > 0
+            ? appointment.RequiredAttendees
+                .Where(a => !string.IsNullOrWhiteSpace(a.Address))
+                .Select(a => a.Address)
+                .ToList()
+            : (IReadOnlyList<string>)[];
+
+        var optionalAttendees = appointment.OptionalAttendees?.Count > 0
+            ? appointment.OptionalAttendees
+                .Where(a => !string.IsNullOrWhiteSpace(a.Address))
+                .Select(a => a.Address)
+                .ToList()
+            : (IReadOnlyList<string>)[];
+        
+        // Categories as comma-separated string
+        var categories = appointment.Categories?.Count > 0
+            ? string.Join(", ", appointment.Categories)
+            : null;
 
         return new DomainCalendarEvent
         {
@@ -491,12 +796,21 @@ public class ExchangeCalendarEventRepository : ICalendarEventRepository
             Start = appointment.Start,
             End = appointment.End,
             Location = appointment.Location,
+            IsOnlineMeeting = appointment.IsOnlineMeeting,
+            IsMeeting = appointment.IsMeeting,
             IsAllDay = appointment.IsAllDayEvent,
             IsRecurring = appointment.IsRecurring,
             Organizer = appointment.Organizer?.Address,
-            CalendarId = Guid.Empty, // Placeholder for removed _calendar.Id field
+            Status = status,
+            RsvpStatus = rsvpStatus,
+            IsPrivate = appointment.Sensitivity is Sensitivity.Private or Sensitivity.Personal or Sensitivity.Confidential,
+            RequiredAttendees = requiredAttendees,
+            OptionalAttendees = optionalAttendees,
+            Categories = categories,
+            HasAttachments = appointment.HasAttachments,
+            ReminderMinutesBeforeStart = appointment.IsReminderSet ? appointment.ReminderMinutesBeforeStart : null,
             OriginalEventId = isCopiedEvent ? originalEventId : null,
-            SourceCalendarId = sourceCalendarId
+            SourceCalendarBindingId = sourceCalendarBindingId
         };
     }
 }
