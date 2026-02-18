@@ -3,20 +3,20 @@
 @inject OutlookSync.Domain.Repositories.ICalendarBindingRepository CalendarBindingRepository
 @inject OutlookSync.Domain.Repositories.IUnitOfWork UnitOfWork
 
-<PageTitle>Calendar Bindings - OutlookSync</PageTitle>
+<PageTitle>Calendar bindings - OutlookSync</PageTitle>
 
 <div class="space-y-6">
     <!-- Header -->
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-3xl font-bold text-gray-900">Calendar Bindings</h1>
+            <h1 class="text-3xl font-bold text-gray-900">Calendar bindings</h1>
             <p class="text-gray-600 mt-1">Manage your calendar synchronization bindings</p>
         </div>
         <button @onclick="ShowAddBindingForm" class="btn-primary">
             <svg class="w-5 h-5 inline-block mr-2 -mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
-            Add Binding
+            Add binding
         </button>
     </div>
 
@@ -29,7 +29,7 @@
     }
     else if (_bindings == null || !_bindings.Any())
     {
-        <!-- Empty State -->
+        <!-- Empty state -->
         <div class="card text-center py-12">
             <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
@@ -37,13 +37,13 @@
             <h3 class="text-lg font-medium text-gray-900 mb-2">No calendar bindings configured</h3>
             <p class="text-gray-600 mb-6">Get started by creating your first calendar binding to synchronize events between calendars</p>
             <button @onclick="ShowAddBindingForm" class="btn-primary">
-                Add Your First Binding
+                Add your first binding
             </button>
         </div>
     }
     else
     {
-        <!-- Bindings List -->
+        <!-- Bindings list -->
         <div class="space-y-4">
             @foreach (var binding in _bindings)
             {
@@ -65,7 +65,7 @@
                                 @if (binding.LastSyncAt.HasValue)
                                 {
                                     <p class="text-gray-700">
-                                        <span class="font-medium">Last Sync:</span> 
+                                        <span class="font-medium">Last sync:</span>
                                         @binding.LastSyncAt.Value.ToString("yyyy-MM-dd HH:mm:ss")
                                         @if (!string.IsNullOrEmpty(binding.LastSyncError))
                                         {
@@ -82,7 +82,7 @@
                                     </p>
                                 }
                                 <p class="text-gray-700">
-                                    <span class="font-medium">Title Handling:</span> 
+                                    <span class="font-medium">Title handling:</span>
                                     @binding.Configuration.TitleHandling
                                 </p>
                                 @if (binding.Configuration.MarkAsPrivate)
@@ -110,8 +110,8 @@
     }
 </div>
 
-<!-- Add Calendar Binding Dialog -->
+<!-- Add calendar binding dialog -->
 <AddCalendarBindingDialog @ref="_addBindingDialog" OnBindingAdded="OnBindingAddedAsync" />
 
-<!-- Edit Calendar Binding Dialog -->
+<!-- Edit calendar binding dialog -->
 <EditCalendarBindingDialog @ref="_editBindingDialog" OnBindingUpdated="OnBindingUpdatedAsync" />

@@ -11,9 +11,9 @@
 {
     <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" @onclick="CloseDialog">
         <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-2/3 xl:w-1/2 shadow-lg rounded-md bg-white max-h-[85vh] overflow-y-auto" @onclick:stopPropagation="true">
-            <!-- Dialog Header -->
+            <!-- Dialog header -->
             <div class="flex items-center justify-between mb-6 pb-4 border-b sticky top-0 bg-white z-10">
-                <h2 class="text-2xl font-bold text-gray-900">Add Calendar Binding</h2>
+                <h2 class="text-2xl font-bold text-gray-900">Add calendar binding</h2>
                 <button @onclick="CloseDialog" class="text-gray-400 hover:text-gray-600">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -21,7 +21,7 @@
                 </button>
             </div>
 
-            <!-- Wizard Progress -->
+            <!-- Wizard progress -->
             <div class="mb-8">
                 <div class="flex items-center justify-between mb-2">
                     @for (int i = 1; i <= 4; i++)
@@ -46,7 +46,7 @@
                 </div>
             </div>
 
-            <!-- Step Content -->
+            <!-- Step content -->
             <div class="min-h-[300px]">
                 @if (_currentStep == 1)
                 {
@@ -84,7 +84,7 @@
                                 @if (!string.IsNullOrEmpty(_selectedSourceCredentialId) && _sourceCalendars != null)
                                 {
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">Source Calendar</label>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Source calendar</label>
                                         @if (_isLoadingSourceCalendars)
                                         {
                                             <div class="flex justify-center py-4">
@@ -122,7 +122,7 @@
                         
                         <div class="space-y-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Target Credential</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Target credential</label>
                                 <select @bind="_selectedTargetCredentialId" @bind:after="OnTargetCredentialChangedAsync" 
                                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-outlook-blue">
                                     <option value="">-- Select a credential --</option>
@@ -136,7 +136,7 @@
                             @if (!string.IsNullOrEmpty(_selectedTargetCredentialId) && _targetCalendars != null)
                             {
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Target Calendar</label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Target calendar</label>
                                     @if (_isLoadingTargetCalendars)
                                     {
                                         <div class="flex justify-center py-4">
@@ -186,7 +186,7 @@
                         
                         <div class="space-y-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Binding Name</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Binding name</label>
                                 <input type="text" @bind="_bindingName" 
                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-outlook-blue"
                                        placeholder="Enter binding name" />
@@ -223,7 +223,7 @@
                 }
             </div>
 
-            <!-- Dialog Footer -->
+            <!-- Dialog footer -->
             <div class="flex justify-between mt-8 pt-4 border-t sticky bottom-0 bg-white">
                 <button @onclick="PreviousStep" 
                         class="btn-secondary"
@@ -253,7 +253,7 @@
                             {
                                 <span class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
                             }
-                            Save Binding
+                            Save binding
                         </button>
                     }
                 </div>
