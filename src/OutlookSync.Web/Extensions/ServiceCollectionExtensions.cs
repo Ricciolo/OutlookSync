@@ -1,7 +1,9 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using OutlookSync.Application.Extensions;
 using OutlookSync.Infrastructure.Extensions;
 using OutlookSync.Infrastructure.Persistence;
+using OutlookSync.Web.Authentication;
 
 namespace OutlookSync.Web.Extensions;
 
@@ -25,6 +27,28 @@ public static class ServiceCollectionExtensions
 
         // Register Application services (Business Logic, Use Cases)
         services.AddApplication();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Adds HTTP basic authentication using settings from the <c>BasicAuth</c> configuration section.
+    /// When <see cref="BasicAuthSettings.Username"/> is empty, authentication is disabled.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configuration">The application configuration.</param>
+    /// <returns>The service collection for chaining.</returns>
+    public static IServiceCollection AddBasicAuthentication(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.Configure<BasicAuthSettings>(configuration.GetSection(BasicAuthSettings.SectionName));
+
+        services.AddAuthentication(BasicAuthenticationHandler.SchemeName)
+            .AddScheme<AuthenticationSchemeOptions, BasicAuthenticationHandler>(
+                BasicAuthenticationHandler.SchemeName, _ => { });
+
+        services.AddAuthorization();
 
         return services;
     }

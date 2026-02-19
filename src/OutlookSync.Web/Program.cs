@@ -11,6 +11,9 @@ builder.Services.AddRazorComponents()
 // Add OutlookSync services (Domain, Application, Infrastructure)
 builder.Services.AddOutlookSyncServices(builder.Configuration);
 
+// Add HTTP basic authentication (credentials configurable via BasicAuth:Username / BasicAuth:Password)
+builder.Services.AddBasicAuthentication(builder.Configuration);
+
 // Add health checks for cloud-native deployments
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<OutlookSyncDbContext>();
@@ -31,21 +34,26 @@ if (!app.Environment.IsDevelopment())
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
 
-// Health check endpoints for Kubernetes/Docker
+app.UseAuthentication();
+app.UseAuthorization();
+
+// Health check endpoints for Kubernetes/Docker (no authentication required)
 app.MapHealthChecks("/health/live", new()
 {
     Predicate = _ => false // Liveness check - always healthy if app is running
-});
+}).AllowAnonymous();
 
 app.MapHealthChecks("/health/ready", new()
 {
     Predicate = _ => true // Readiness check - checks all registered health checks
-});
+}).AllowAnonymous();
 
 app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+    .AddInteractiveServerRenderMode()
+    .RequireAuthorization();
 
 app.Run();
+
