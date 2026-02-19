@@ -12,6 +12,14 @@ public interface ICalendarsSyncService
     /// <returns>Overall sync result with statistics</returns>
     Task<CalendarsSyncResult> SyncAllCalendarsAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Synchronizes a specific calendar binding by copying events from source to target
+    /// </summary>
+    /// <param name="bindingId">The ID of the calendar binding to synchronize</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Sync result with the number of events copied and any errors</returns>
+    Task<SyncResult> SyncCalendarBindingAsync(Guid bindingId, CancellationToken cancellationToken = default);
+
 }
 
 /// <summary>

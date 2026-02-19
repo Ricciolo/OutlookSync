@@ -18,8 +18,6 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
         // The token cache should be stored in Credential.StatusData
         private static readonly string s_calendarExternalId = Environment.GetEnvironmentVariable("CALENDAR_ID") ?? string.Empty;
 
-        private const string CalendarName = "Test Calendar";
-
         private readonly ILogger<ExchangeCalendarEventRepository> _logger;
 
         public ExchangeCalendarEventRepositoryIntegrationTests()
@@ -30,23 +28,6 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
             });
             _logger = loggerFactory.CreateLogger<ExchangeCalendarEventRepository>();
         }
-
-    private static Calendar CreateTestCalendar()
-    {
-        return new Calendar
-        {
-            Name = CalendarName,
-            ExternalId = s_calendarExternalId,
-            CredentialId = Guid.CreateVersion7(),
-            Configuration = new SyncConfiguration
-            {
-                Interval = SyncInterval.Every30Minutes(),
-                StartDate = DateTime.UtcNow,
-                IsPrivate = false,
-                FieldSelection = CalendarFieldSelection.All()
-            }
-        };
-    }
 
     private static Credential CreateTestCredential()
     {
@@ -75,11 +56,9 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
         // Arrange
         ValidateConfiguration();
 
-        var calendar = CreateTestCalendar();
         var credential = CreateTestCredential();
 
         var repository = new ExchangeCalendarEventRepository(
-            calendar,
             credential,
             _logger);
 
@@ -88,7 +67,7 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
 
         // Assert - no exception means success
         // Verify we can use the repository
-        var events = await repository.GetAllAsync();
+        var events = await repository.GetAllAsync(s_calendarExternalId);
         Assert.NotNull(events);
     }
 
@@ -96,11 +75,9 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
     public async Task InitAsync_ShouldThrow_WhenNoCachedAccountsExist()
     {
         // Arrange
-        var calendar = CreateTestCalendar();
         var credential = CreateCredentialWithoutCache();
 
         var repository = new ExchangeCalendarEventRepository(
-            calendar,
             credential,
             _logger);
 
@@ -116,17 +93,15 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
     public async Task GetAllAsync_ShouldThrow_WhenNotInitialized()
     {
         // Arrange
-        var calendar = CreateTestCalendar();
         var credential = CreateTestCredential();
 
         var repository = new ExchangeCalendarEventRepository(
-            calendar,
             credential,
             _logger);
 
         // Act & Assert - calling GetAllAsync without InitAsync should throw
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await repository.GetAllAsync());
+            async () => await repository.GetAllAsync(s_calendarExternalId));
 
         Assert.Contains("has not been initialized", exception.Message);
     }
@@ -137,17 +112,15 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
         // Arrange
         ValidateConfiguration();
 
-        var calendar = CreateTestCalendar();
         var credential = CreateTestCredential();
 
         var repository = new ExchangeCalendarEventRepository(
-            calendar,
             credential,
             _logger);
 
         // Act
         await repository.InitAsync();
-        var events = await repository.GetAllAsync();
+        var events = await repository.GetAllAsync(s_calendarExternalId);
 
         // Assert
         Assert.NotNull(events);
@@ -158,11 +131,9 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
     public async Task GetAvailableCalendarsAsync_ShouldThrow_WhenNotInitialized()
     {
         // Arrange
-        var calendar = CreateTestCalendar();
         var credential = CreateTestCredential();
 
         var repository = new ExchangeCalendarEventRepository(
-            calendar,
             credential,
             _logger);
 
@@ -179,11 +150,9 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
         // Arrange
         ValidateConfiguration();
 
-        var calendar = CreateTestCalendar();
         var credential = CreateTestCredential();
 
         var repository = new ExchangeCalendarEventRepository(
-            calendar,
             credential,
             _logger);
 
@@ -212,11 +181,9 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
         // Arrange
         ValidateConfiguration();
 
-        var calendar = CreateTestCalendar();
         var credential = CreateTestCredential();
 
         var repository = new ExchangeCalendarEventRepository(
-            calendar,
             credential,
             _logger);
 
@@ -232,17 +199,16 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
             Location = "Test Location",
             IsAllDay = false,
             IsRecurring = false,
-            CalendarId = calendar.Id,
             OriginalEventId = null,
-            SourceCalendarId = null
+            SourceCalendarBindingId = null
         };
 
         // Act
-        await repository.AddAsync(calendarEvent);
+        await repository.AddAsync(calendarEvent, s_calendarExternalId);
 
         // Assert
         // Verifica che l'evento sia stato creato leggendo tutti gli eventi
-        var events = await repository.GetAllAsync();
+        var events = await repository.GetAllAsync(s_calendarExternalId);
         var createdEvent = events.FirstOrDefault(e => e.Subject == calendarEvent.Subject);
         Assert.NotNull(createdEvent);
         Assert.Equal(calendarEvent.Body, createdEvent.Body);
@@ -254,18 +220,16 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
         // Arrange
         ValidateConfiguration();
 
-        var calendar = CreateTestCalendar();
         var credential = CreateTestCredential();
 
         var repository = new ExchangeCalendarEventRepository(
-            calendar,
             credential,
             _logger);
 
         await repository.InitAsync();
 
         var originalEventId = "original-event-12345";
-        var sourceCalendarId = Guid.CreateVersion7();
+        var sourceCalendarBindingId = Guid.CreateVersion7();
 
         var copiedEvent = new CalendarEvent
         {
@@ -277,16 +241,15 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
             Location = "Copied Location",
             IsAllDay = false,
             IsRecurring = false,
-            CalendarId = calendar.Id,
             OriginalEventId = originalEventId,
-            SourceCalendarId = sourceCalendarId
+            SourceCalendarBindingId = sourceCalendarBindingId
         };
 
         // Act
-        await repository.AddAsync(copiedEvent);
+        await repository.AddAsync(copiedEvent, s_calendarExternalId);
 
         // Assert
-        var events = await repository.GetAllAsync();
+        var events = await repository.GetAllAsync(s_calendarExternalId);
         var createdEvent = events.FirstOrDefault(e => e.Subject == copiedEvent.Subject);
         Assert.NotNull(createdEvent);
         Assert.True(createdEvent.IsCopiedEvent);
@@ -299,18 +262,16 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
         // Arrange
         ValidateConfiguration();
 
-        var calendar = CreateTestCalendar();
         var credential = CreateTestCredential();
 
         var repository = new ExchangeCalendarEventRepository(
-            calendar,
             credential,
             _logger);
 
         await repository.InitAsync();
 
-        var sourceCalendarId = Guid.CreateVersion7();
-        var originalEventId = $"test-original-{Guid.CreateVersion7()}";
+        var sourceCalendarBindingId = Guid.CreateVersion7();
+        var originalEventExternalId = $"test-original-{Guid.CreateVersion7()}";
 
         // First create a copied event
         var copiedEvent = new DomainCalendarEvent
@@ -323,46 +284,21 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
             Location = "Find Test Location",
             IsAllDay = false,
             IsRecurring = false,
-            CalendarId = calendar.Id,
-            OriginalEventId = originalEventId,
-            SourceCalendarId = sourceCalendarId
+            OriginalEventId = originalEventExternalId,
+            SourceCalendarBindingId = sourceCalendarBindingId
         };
 
-        await repository.AddAsync(copiedEvent);
-
-        // Create a dummy source event
-        var sourceEvent = new DomainCalendarEvent
-        {
-            Id = Guid.CreateVersion7(),
-            ExternalId = originalEventId,
-            Subject = "Original Event",
-            Body = "Original event body",
-            Start = DateTime.Now.AddDays(3),
-            End = DateTime.Now.AddDays(3).AddHours(1),
-            CalendarId = sourceCalendarId,
-        };
-
-        var sourceCalendar = new Calendar(sourceCalendarId)
-        {
-            Name = "Source Calendar",
-            ExternalId = "source-cal-123",
-            CredentialId = Guid.CreateVersion7(),
-            Configuration = new SyncConfiguration
-            {
-                Interval = SyncInterval.Every30Minutes(),
-                StartDate = DateTime.UtcNow,
-                IsPrivate = false,
-                FieldSelection = CalendarFieldSelection.All()
-            }
-        };
+        await repository.AddAsync(copiedEvent, s_calendarExternalId);
 
         // Act
-        var foundEvent = await repository.FindCopiedEventAsync(sourceEvent, sourceCalendar);
+        var foundEvent = await repository.FindCopiedEventAsync(
+            originalEventExternalId, 
+            sourceCalendarBindingId,
+            s_calendarExternalId);
 
         // Assert
         Assert.NotNull(foundEvent);
-        Assert.Equal(originalEventId, foundEvent.OriginalEventId);
-        Assert.Equal(sourceCalendar.Id, foundEvent.SourceCalendarId);
+        Assert.Equal(originalEventExternalId, foundEvent.OriginalEventId);
     }
 
     [Fact]
@@ -371,7 +307,6 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
         // Arrange
         ValidateConfiguration();
 
-        var calendar = CreateTestCalendar();
         var credential = CreateTestCredential();
 
         var retryPolicy = new RetryPolicy
@@ -384,7 +319,6 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
         };
 
         var repository = new ExchangeCalendarEventRepository(
-            calendar,
             credential,
             _logger,
             retryPolicy);
@@ -393,34 +327,16 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
 
         // Act & Assert
         // Questo test verifica che il repository sia configurato correttamente con retry policy
-        var events = await repository.GetAllAsync();
+        var events = await repository.GetAllAsync(s_calendarExternalId);
         Assert.NotNull(events);
-    }
-
-    [Fact]
-    public void Constructor_ShouldThrowArgumentNullException_WhenCalendarIsNull()
-    {
-        // Arrange
-        var credential = CreateTestCredential();
-
-        // Act & Assert
-        Assert.Throws<ArgumentNullException>(() =>
-            new ExchangeCalendarEventRepository(
-                null!,
-                credential,
-                _logger));
     }
 
     [Fact]
     public void Constructor_ShouldThrowArgumentNullException_WhenCredentialIsNull()
     {
-        // Arrange
-        var calendar = CreateTestCalendar();
-
-        // Act & Assert
+        // Arrange & Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
             new ExchangeCalendarEventRepository(
-                calendar,
                 null!,
                 _logger));
     }
@@ -429,14 +345,12 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
     public void Constructor_ShouldNotThrow_WhenCredentialTokenIsInvalid()
     {
         // Arrange
-        var calendar = CreateTestCalendar();
         var credential = new Credential { FriendlyName = "Invalid Credential" };
         // No status data set, TokenStatus will be NotAcquired
 
         // Act & Assert - Constructor should not throw, validation happens in factory
         var exception = Record.Exception(() =>
             new ExchangeCalendarEventRepository(
-                calendar,
                 credential,
                 _logger));
         
@@ -448,13 +362,11 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
     public void Constructor_ShouldThrowArgumentNullException_WhenLoggerIsNull()
     {
         // Arrange
-        var calendar = CreateTestCalendar();
         var credential = CreateTestCredential();
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
             new ExchangeCalendarEventRepository(
-                calendar,
                 credential,
                 null!));
     }

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using OutlookSync.Infrastructure.Persistence;
 
@@ -10,12 +11,53 @@ using OutlookSync.Infrastructure.Persistence;
 namespace OutlookSync.Infrastructure.Migrations
 {
     [DbContext(typeof(OutlookSyncDbContext))]
-    partial class OutlookSyncDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260218090323_InitialCreate")]
+    partial class InitialCreate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.3");
+
+            modelBuilder.Entity("OutlookSync.Domain.Aggregates.Calendar", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CredentialId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ExternalId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("LastSyncAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExternalId")
+                        .IsUnique();
+
+                    b.ToTable("Calendars", (string)null);
+                });
 
             modelBuilder.Entity("OutlookSync.Domain.Aggregates.CalendarBinding", b =>
                 {
@@ -103,6 +145,102 @@ namespace OutlookSync.Infrastructure.Migrations
                     b.ToTable("Credentials", (string)null);
                 });
 
+            modelBuilder.Entity("OutlookSync.Domain.Aggregates.Calendar", b =>
+                {
+                    b.OwnsOne("OutlookSync.Domain.ValueObjects.SyncConfiguration", "Configuration", b1 =>
+                        {
+                            b1.Property<Guid>("CalendarId")
+                                .HasColumnType("TEXT");
+
+                            b1.Property<bool>("IsPrivate")
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<DateTime>("StartDate")
+                                .HasColumnType("TEXT");
+
+                            b1.Property<int>("SyncDaysForward")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("INTEGER")
+                                .HasDefaultValue(30);
+
+                            b1.HasKey("CalendarId");
+
+                            b1.ToTable("Calendars");
+
+                            b1.WithOwner()
+                                .HasForeignKey("CalendarId");
+
+                            b1.OwnsOne("OutlookSync.Domain.ValueObjects.CalendarFieldSelection", "FieldSelection", b2 =>
+                                {
+                                    b2.Property<Guid>("SyncConfigurationCalendarId")
+                                        .HasColumnType("TEXT");
+
+                                    b2.Property<bool>("Attendees")
+                                        .HasColumnType("INTEGER");
+
+                                    b2.Property<bool>("Body")
+                                        .HasColumnType("INTEGER");
+
+                                    b2.Property<bool>("EndTime")
+                                        .HasColumnType("INTEGER");
+
+                                    b2.Property<bool>("IsAllDay")
+                                        .HasColumnType("INTEGER");
+
+                                    b2.Property<bool>("Location")
+                                        .HasColumnType("INTEGER");
+
+                                    b2.Property<bool>("Organizer")
+                                        .HasColumnType("INTEGER");
+
+                                    b2.Property<bool>("Recurrence")
+                                        .HasColumnType("INTEGER");
+
+                                    b2.Property<bool>("StartTime")
+                                        .HasColumnType("INTEGER");
+
+                                    b2.Property<bool>("Subject")
+                                        .HasColumnType("INTEGER");
+
+                                    b2.HasKey("SyncConfigurationCalendarId");
+
+                                    b2.ToTable("Calendars");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("SyncConfigurationCalendarId");
+                                });
+
+                            b1.OwnsOne("OutlookSync.Domain.ValueObjects.SyncInterval", "Interval", b2 =>
+                                {
+                                    b2.Property<Guid>("SyncConfigurationCalendarId")
+                                        .HasColumnType("TEXT");
+
+                                    b2.Property<string>("CronExpression")
+                                        .HasMaxLength(50)
+                                        .HasColumnType("TEXT");
+
+                                    b2.Property<int>("Minutes")
+                                        .HasColumnType("INTEGER");
+
+                                    b2.HasKey("SyncConfigurationCalendarId");
+
+                                    b2.ToTable("Calendars");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("SyncConfigurationCalendarId");
+                                });
+
+                            b1.Navigation("FieldSelection")
+                                .IsRequired();
+
+                            b1.Navigation("Interval")
+                                .IsRequired();
+                        });
+
+                    b.Navigation("Configuration")
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("OutlookSync.Domain.Aggregates.CalendarBinding", b =>
                 {
                     b.OwnsOne("OutlookSync.Domain.ValueObjects.CalendarBindingConfiguration", "Configuration", b1 =>
@@ -111,6 +249,9 @@ namespace OutlookSync.Infrastructure.Migrations
                                 .HasColumnType("TEXT");
 
                             b1.Property<bool>("CopyAttachments")
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<bool>("CopyConferenceLink")
                                 .HasColumnType("INTEGER");
 
                             b1.Property<bool>("CopyDescription")
@@ -141,13 +282,12 @@ namespace OutlookSync.Infrastructure.Migrations
                                 .HasMaxLength(50)
                                 .HasColumnType("TEXT");
 
-                            b1.Property<int>("SyncDaysForward")
-                                .ValueGeneratedOnAdd()
-                                .HasColumnType("INTEGER")
-                                .HasDefaultValue(30);
-
                             b1.Property<string>("TargetCategory")
                                 .HasMaxLength(200)
+                                .HasColumnType("TEXT");
+
+                            b1.Property<string>("TargetEventColor")
+                                .HasMaxLength(50)
                                 .HasColumnType("TEXT");
 
                             b1.Property<string>("TargetStatus")
@@ -165,6 +305,25 @@ namespace OutlookSync.Infrastructure.Migrations
 
                             b1.WithOwner()
                                 .HasForeignKey("CalendarBindingId");
+
+                            b1.OwnsOne("OutlookSync.Domain.ValueObjects.ColorExclusionRule", "ColorExclusion", b2 =>
+                                {
+                                    b2.Property<Guid>("CalendarBindingConfigurationCalendarBindingId")
+                                        .HasColumnType("TEXT");
+
+                                    b2.Property<string>("ExcludedColors")
+                                        .IsRequired()
+                                        .HasMaxLength(500)
+                                        .HasColumnType("TEXT")
+                                        .HasColumnName("ExcludedColors");
+
+                                    b2.HasKey("CalendarBindingConfigurationCalendarBindingId");
+
+                                    b2.ToTable("CalendarBindings");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("CalendarBindingConfigurationCalendarBindingId");
+                                });
 
                             b1.OwnsOne("OutlookSync.Domain.ValueObjects.RsvpExclusionRule", "RsvpExclusion", b2 =>
                                 {
@@ -204,29 +363,7 @@ namespace OutlookSync.Infrastructure.Migrations
                                         .HasForeignKey("CalendarBindingConfigurationCalendarBindingId");
                                 });
 
-                            b1.OwnsOne("OutlookSync.Domain.ValueObjects.SyncInterval", "Interval", b2 =>
-                                {
-                                    b2.Property<Guid>("CalendarBindingConfigurationCalendarBindingId")
-                                        .HasColumnType("TEXT");
-
-                                    b2.Property<string>("CronExpression")
-                                        .HasMaxLength(100)
-                                        .HasColumnType("TEXT")
-                                        .HasColumnName("SyncCronExpression");
-
-                                    b2.Property<int>("Minutes")
-                                        .HasColumnType("INTEGER")
-                                        .HasColumnName("SyncIntervalMinutes");
-
-                                    b2.HasKey("CalendarBindingConfigurationCalendarBindingId");
-
-                                    b2.ToTable("CalendarBindings");
-
-                                    b2.WithOwner()
-                                        .HasForeignKey("CalendarBindingConfigurationCalendarBindingId");
-                                });
-
-                            b1.Navigation("Interval")
+                            b1.Navigation("ColorExclusion")
                                 .IsRequired();
 
                             b1.Navigation("RsvpExclusion")

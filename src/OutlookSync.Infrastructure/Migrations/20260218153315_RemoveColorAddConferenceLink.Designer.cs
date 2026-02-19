@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using OutlookSync.Infrastructure.Persistence;
 
@@ -10,9 +11,11 @@ using OutlookSync.Infrastructure.Persistence;
 namespace OutlookSync.Infrastructure.Migrations
 {
     [DbContext(typeof(OutlookSyncDbContext))]
-    partial class OutlookSyncDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260218153315_RemoveColorAddConferenceLink")]
+    partial class RemoveColorAddConferenceLink
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.3");
@@ -111,6 +114,9 @@ namespace OutlookSync.Infrastructure.Migrations
                                 .HasColumnType("TEXT");
 
                             b1.Property<bool>("CopyAttachments")
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<bool>("CopyConferenceLink")
                                 .HasColumnType("INTEGER");
 
                             b1.Property<bool>("CopyDescription")

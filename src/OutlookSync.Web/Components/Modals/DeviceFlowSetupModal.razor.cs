@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
+using OutlookSync.Domain.Repositories;
 using OutlookSync.Domain.Services;
 
 namespace OutlookSync.Web.Components.Modals;
@@ -18,6 +19,18 @@ public partial class DeviceFlowSetupModal : ComponentBase, IAsyncDisposable
     private string _copyButtonText = "Copy Code";
     private bool _isProcessing;
     private IJSObjectReference? _clipboardModule;
+
+    [Inject]
+    private ICredentialsService CredentialsService { get; set; } = default!;
+
+    [Inject]
+    private ICredentialRepository CredentialRepository { get; set; } = default!;
+
+    [Inject]
+    private IUnitOfWork UnitOfWork { get; set; } = default!;
+
+    [Inject]
+    private IJSRuntime JSRuntime { get; set; } = default!;
 
     private enum DeviceFlowStep
     {

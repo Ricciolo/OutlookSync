@@ -12,10 +12,10 @@ public class OutlookSyncDbContext: DbContext
     {
         ChangeTracker.AutoDetectChangesEnabled = false;
     }
-
-    public DbSet<Calendar> Calendars => Set<Calendar>();
     
     public DbSet<Credential> Credentials => Set<Credential>();
+    
+    public DbSet<CalendarBinding> CalendarBindings => Set<CalendarBinding>();
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

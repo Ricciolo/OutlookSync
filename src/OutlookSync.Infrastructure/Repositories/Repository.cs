@@ -26,7 +26,7 @@ public class Repository<T>(OutlookSyncDbContext context) : IRepository<T> where 
     /// <inheritdoc />
     public virtual Task UpdateAsync(T entity, CancellationToken cancellationToken = default)
     {
-        _context.Entry(entity).State = EntityState.Modified;
+        _context.Update(entity);
         return Task.CompletedTask;
     }
 
