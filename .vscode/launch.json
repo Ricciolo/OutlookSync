@@ -1,0 +1,35 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            // Usare IntelliSense per individuare gli attributi esistenti per il debug C#
+            // Usa il passaggio del mouse per la descrizione degli attributi esistenti
+            // Per ulteriori informazioni, visitare https://github.com/dotnet/vscode-csharp/blob/main/debugger-launchjson.md.
+            "name": ".NET Core Launch (web)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            // Se i framework di destinazione sono stati modificati, assicurarsi di aggiornare il percorso del programma.
+            "program": "${workspaceFolder}/src/OutlookSync.Web/bin/Debug/net10.0/OutlookSync.Web.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/OutlookSync.Web",
+            "stopAtEntry": false,
+            // Abilita l'avvio di un Web browser all'avvio di ASP.NET Core. Per ulteriori informazioni: https://aka.ms/VSCode-CS-LaunchJson-WebBrowser
+            "serverReadyAction": {
+                "action": "openExternally",
+                "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
+            },
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development"
+            },
+            "sourceFileMap": {
+                "/Views": "${workspaceFolder}/Views"
+            }
+        },
+        {
+            "name": ".NET Core Attach",
+            "type": "coreclr",
+            "request": "attach"
+        }
+    ]
+}
