@@ -26,6 +26,16 @@ public class Repository<T>(OutlookSyncDbContext context) : IRepository<T> where 
     /// <inheritdoc />
     public virtual Task UpdateAsync(T entity, CancellationToken cancellationToken = default)
     {
+        var entry = _context.Entry(entity);
+        if (entry.State == EntityState.Unchanged)
+        {
+            // When an owned-entity reference has been replaced (e.g., via a record 'with' expression),
+            // the old owned-entity instance remains in EF Core's identity map even after the parent is
+            // detached. Clearing the tracker removes all stale entries so that _context.Update can
+            // re-read the current values (including the new owned-entity object) without conflicts.
+            _context.ChangeTracker.Clear();
+        }
+
         _context.Update(entity);
         return Task.CompletedTask;
     }

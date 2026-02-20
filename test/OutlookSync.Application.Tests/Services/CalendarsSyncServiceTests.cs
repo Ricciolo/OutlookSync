@@ -87,6 +87,13 @@ public class CalendarsSyncServiceTests
         mockTargetEventRepository
             .Setup(r => r.InitAsync(It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
+        mockTargetEventRepository
+            .Setup(r => r.GetCopiedEventsAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<CalendarEvent>());
+
+        _mockCalendarBindingRepository
+            .Setup(r => r.GetByIdAsync(binding.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(binding);
 
         _mockCalendarEventRepositoryFactory
             .Setup(f => f.Create(sourceCredential))
@@ -156,6 +163,10 @@ public class CalendarsSyncServiceTests
             .Setup(r => r.GetByIdAsync(binding1.SourceCredentialId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Credential?)null); // Missing source credential
 
+        _mockCalendarBindingRepository
+            .Setup(r => r.GetByIdAsync(binding1.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(binding1);
+
         SetupBindingMocks(binding2, credential2, targetCred2, []);
 
         // Act
@@ -183,6 +194,10 @@ public class CalendarsSyncServiceTests
         _mockCredentialRepository
             .Setup(r => r.GetByIdAsync(binding.SourceCredentialId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(invalidCredential);
+
+        _mockCalendarBindingRepository
+            .Setup(r => r.GetByIdAsync(binding.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(binding);
 
         // Act
         var result = await _service.SyncAllCalendarsAsync();
@@ -294,9 +309,13 @@ public class CalendarsSyncServiceTests
             .Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Database error"));
 
-        // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _service.SyncAllCalendarsAsync());
+        // Act
+        var result = await _service.SyncAllCalendarsAsync();
+
+        // Assert - exception is caught per-binding; the overall call returns a partial failure
+        Assert.False(result.IsSuccess);
+        Assert.Equal(1, result.FailedSyncs);
+        Assert.NotEmpty(result.Errors);
     }
 
     [Fact]
@@ -344,6 +363,10 @@ public class CalendarsSyncServiceTests
             .Setup(r => r.GetByIdAsync(binding.TargetCredentialId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(targetCredential);
 
+        _mockCalendarBindingRepository
+            .Setup(r => r.GetByIdAsync(binding.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(binding);
+
         var mockEventRepo = new Mock<ICalendarEventRepository>();
         mockEventRepo
             .Setup(r => r.InitAsync(It.IsAny<CancellationToken>()))
@@ -372,6 +395,11 @@ public class CalendarsSyncServiceTests
         IReadOnlyList<CalendarEvent> sourceEvents,
         Mock<ICalendarEventRepository>? mockTargetRepo = null)
     {
+        // Setup binding lookup (SyncCalendarBindingAsync calls GetByIdAsync internally)
+        _mockCalendarBindingRepository
+            .Setup(r => r.GetByIdAsync(binding.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(binding);
+
         // Setup credentials
         _mockCredentialRepository
             .Setup(r => r.GetByIdAsync(binding.SourceCredentialId, It.IsAny<CancellationToken>()))
@@ -396,6 +424,9 @@ public class CalendarsSyncServiceTests
             mockTargetRepo
                 .Setup(r => r.AddAsync(It.IsAny<CalendarEvent>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
+            mockTargetRepo
+                .Setup(r => r.GetCopiedEventsAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new List<CalendarEvent>());
         }
         
         _mockCalendarEventRepositoryFactory
