@@ -6,8 +6,9 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 WORKDIR /app
 EXPOSE 8080
 
-# Create a non-root user for security
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+# Create a non-root user for security and the database directory
+RUN groupadd -r appuser && useradd -r -g appuser appuser \
+    && mkdir -p /app/db && chown appuser:appuser /app/db
 
 # Stage 2: Build stage
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
@@ -71,7 +72,11 @@ USER appuser
 ENV ASPNETCORE_ENVIRONMENT=Production \
     ASPNETCORE_URLS=http://+:8080 \
     DOTNET_RUNNING_IN_CONTAINER=true \
-    DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
+    DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false \
+    ConnectionStrings__DefaultConnection="Data Source=/app/db/outlooksync.db"
+
+# Mount point for persistent SQLite database storage
+VOLUME /app/db
 
 # Health check for container orchestration (Kubernetes, Docker Compose)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
