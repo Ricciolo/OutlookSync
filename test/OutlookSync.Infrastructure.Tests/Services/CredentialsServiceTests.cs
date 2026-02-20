@@ -14,10 +14,10 @@ public class CredentialsServiceTests
     }
 
     [Fact]
-    public async Task InitializeCredentialAsync_WithNullFriendlyName_ThrowsArgumentException()
+    public async Task InitializeCredentialAsync_WithNullFriendlyName_ThrowsArgumentNullException()
     {
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(
+        await Assert.ThrowsAsync<ArgumentNullException>(
             async () => await _service.InitializeCredentialAsync(null!));
     }
 

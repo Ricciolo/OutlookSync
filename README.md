@@ -1,42 +1,124 @@
 # OutlookSync
 
-A modern, cloud-native ASP.NET Core 10 application built with Docker support and CI/CD automation.
+OutlookSync is a self-hosted Blazor application that synchronises your Microsoft Exchange / Outlook calendars with external calendar providers. It runs as a lightweight Docker container, stores its data in a local SQLite database, and optionally enforces HTTP Basic Authentication when credentials are configured.
 
-## 🚀 Features
+## ✨ Features
 
-- **ASP.NET Core 10** - Latest .NET framework
-- **Docker Multi-Stage Build** - Optimized containerization
-- **Cloud-Native** - 12-factor app principles, health checks, environment-based configuration
-- **CI/CD Ready** - GitHub Actions workflow for automated builds and tests
-- **Code Quality** - Nullable reference types, code analyzers, consistent styling
+- **Exchange Calendar Sync** — Automatically keep calendars in sync with Microsoft Exchange / Outlook
+- **Blazor Server UI** — Modern, real-time web interface powered by ASP.NET Core 10 Blazor
+- **SQLite Persistence** — Zero-dependency local database; mount a volume and you're done
+- **Basic Authentication** — Protect the UI with a username and password configured via environment variables
+- **Health Checks** — `/health/live` and `/health/ready` endpoints for container orchestration
+- **Docker-first** — Multi-stage, production-ready image published to GitHub Container Registry
+- **CI/CD** — GitHub Actions pipeline builds, tests, and pushes the image automatically
 
 ## 📋 Prerequisites
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) (10.0.102 or later)
-- [Docker](https://www.docker.com/get-started) (optional, for containerization)
+- [Docker](https://www.docker.com/get-started) — to run the container
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) — only for local development
+
+## 🐳 Quick Start with Docker
+
+### Pull from GitHub Container Registry
+
+```bash
+docker pull ghcr.io/ricciolo/outlooksync:latest
+```
+
+### Run the container
+
+```bash
+docker run -d \
+  --name outlooksync \
+  -p 8080:8080 \
+  -e BasicAuth__Username=admin \
+  -e BasicAuth__Password=changeme \
+  -v outlooksync-db:/app/db \
+  ghcr.io/ricciolo/outlooksync:latest
+```
+
+Open http://localhost:8080 in your browser and log in with the credentials above.
+
+### Docker Compose
+
+```yaml
+services:
+  outlooksync:
+    image: ghcr.io/ricciolo/outlooksync:latest
+    container_name: outlooksync
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      BasicAuth__Username: admin
+      BasicAuth__Password: changeme
+    volumes:
+      - outlooksync-db:/app/db
+
+volumes:
+  outlooksync-db:
+```
+
+```bash
+docker compose up -d
+```
+
+## ⚙️ Configuration
+
+All settings are controlled through environment variables. In Docker, use double-underscore (`__`) as the section separator.
+
+| Environment Variable | Default | Description |
+|---|---|---|
+| `BasicAuth__Username` | *(empty)* | Username for Basic Authentication. Leave empty to disable authentication. |
+| `BasicAuth__Password` | *(empty)* | Password for Basic Authentication. |
+| `ConnectionStrings__DefaultConnection` | `Data Source=/app/db/outlooksync.db` | SQLite connection string. |
+| `ASPNETCORE_URLS` | `http://+:8080` | Listening address and port. Change to use a different port. |
+| `ASPNETCORE_ENVIRONMENT` | `Production` | ASP.NET Core environment name. |
+
+### Changing the port
+
+```bash
+docker run -d \
+  --name outlooksync \
+  -p 9000:9000 \
+  -e ASPNETCORE_URLS=http://+:9000 \
+  -e BasicAuth__Username=admin \
+  -e BasicAuth__Password=changeme \
+  -v outlooksync-db:/app/db \
+  ghcr.io/ricciolo/outlooksync:latest
+```
+
+### Database persistence
+
+The SQLite database file is stored at `/app/db/outlooksync.db` inside the container. Mount a named volume or a host directory to persist data across container restarts:
+
+```bash
+# Named volume (recommended)
+-v outlooksync-db:/app/db
+
+# Host directory
+-v /path/on/host:/app/db
+```
 
 ## 🏗️ Project Structure
 
 ```
 OutlookSync/
-├── src/                    # Source code
-│   ├── OutlookSync.Application/  # Application layer (use cases)
-│   ├── OutlookSync.Domain/       # Domain layer (entities, aggregates)
-│   ├── OutlookSync.Infrastructure/ # Infrastructure (data access, services)
-│   └── OutlookSync.Web/          # Blazor web application
-├── test/                   # Test projects
+├── src/
+│   ├── OutlookSync.Web/            # Blazor Server application
+│   ├── OutlookSync.Application/    # Application layer (use cases)
+│   ├── OutlookSync.Domain/         # Domain layer (entities, aggregates)
+│   └── OutlookSync.Infrastructure/ # Data access, Exchange services
+├── test/
 │   ├── OutlookSync.Application.Tests/
 │   ├── OutlookSync.Domain.Tests/
 │   └── OutlookSync.Infrastructure.Tests/
-├── docs/                   # Documentation
-├── .github/workflows/     # CI/CD pipelines
-├── Dockerfile            # Multi-stage Docker build
-└── Directory.Build.props # Common build properties
+├── .github/workflows/              # CI/CD pipelines
+├── Dockerfile                      # Multi-stage Docker build
+└── Directory.Build.props           # Common build properties
 ```
 
-## 🛠️ Getting Started
-
-### Local Development
+## 🛠️ Local Development
 
 ```bash
 # Clone the repository
@@ -60,23 +142,35 @@ The web application will be available at:
 - HTTP: http://localhost:5000
 - HTTPS: https://localhost:5001
 
-### Health Checks
-
-- Liveness: http://localhost:5000/health/live
-- Readiness: http://localhost:5000/health/ready
-
-### Docker
+### Build the Docker image locally
 
 ```bash
-# Build the Docker image
-docker build -t outlooksync:latest .
-
-# Run the container
-docker run -p 8080:8080 outlooksync:latest
-
-# Access the application
-curl http://localhost:8080/health/live
+docker build -t outlooksync:local .
+docker run -p 8080:8080 \
+  -e BasicAuth__Username=admin \
+  -e BasicAuth__Password=changeme \
+  -v outlooksync-db:/app/db \
+  outlooksync:local
 ```
+
+### Health Checks
+
+| Endpoint | Description |
+|---|---|
+| `GET /health/live` | Liveness — returns 200 if the application is running |
+| `GET /health/ready` | Readiness — returns 200 when all dependencies are available |
+
+## 🚀 CI/CD Pipeline
+
+The GitHub Actions workflow (`.github/workflows/ci-cd.yml`) runs automatically on every push and pull request to `main` or `develop`:
+
+1. **Build & Test** — restores packages, builds in Release mode, and runs all unit tests
+2. **Publish** — on push to `main`, logs in to GitHub Container Registry and pushes the image with the following tags:
+   - `ghcr.io/ricciolo/outlooksync:latest`
+   - `ghcr.io/ricciolo/outlooksync:main`
+   - `ghcr.io/ricciolo/outlooksync:sha-<commit>`
+
+No secrets need to be configured; the workflow uses the built-in `GITHUB_TOKEN`.
 
 ## 🧪 Testing
 
@@ -88,36 +182,16 @@ dotnet test
 dotnet test --collect:"XPlat Code Coverage"
 ```
 
-## 📖 Documentation
+## 🔧 Architecture
 
-- [Architecture Overview](docs/architecture.md)
-- [Legend and Project Guide](legend.md)
-- [Epic Root Documentation](epic-root-outlooksync.md)
+This project follows Clean Architecture and Domain-Driven Design principles:
 
-## 🔧 Configuration
+- **Domain layer** — core business entities and rules, no external dependencies
+- **Application layer** — use cases orchestrating domain objects
+- **Infrastructure layer** — SQLite/EF Core persistence, Exchange service clients
+- **Web layer** — Blazor Server UI, authentication middleware, health checks
 
-The application uses environment-based configuration following 12-factor app principles:
-
-```bash
-# Set environment
-export ASPNETCORE_ENVIRONMENT=Production
-
-# Set custom port
-export PORT=8080
-
-# Run with environment variables
-dotnet run --project src/OutlookSync.Web
-```
-
-## 🏗️ Architecture
-
-This project follows:
-- **12-Factor App** methodology
-- **Cloud-Native** best practices
-- **Microservices-ready** architecture
-- **Clean Architecture** principles
-
-See [Architecture Documentation](docs/architecture.md) for details.
+See [legend.md](legend.md) for the full list of best practices and references used in this project.
 
 ## 🤝 Contributing
 
@@ -129,17 +203,8 @@ See [Architecture Documentation](docs/architecture.md) for details.
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License.
 
 ## 📧 Support
 
-For questions and support:
-- Open an issue on GitHub
-- Check the [documentation](docs/)
-- Review [epic-root-outlooksync.md](epic-root-outlooksync.md)
-
-## 🙏 Acknowledgments
-
-- Built with [ASP.NET Core](https://asp.net/)
-- Follows [Microsoft .NET Architecture Guides](https://learn.microsoft.com/en-us/dotnet/architecture/)
-- Implements [12-Factor App](https://12factor.net/) methodology
+For questions and support, open an issue on GitHub.
