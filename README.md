@@ -1,20 +1,14 @@
 # OutlookSync
 
-OutlookSync is a self-hosted Blazor application that synchronises your Microsoft Exchange / Outlook calendars with external calendar providers. It lets you define **Calendar Bindings** — unidirectional sync relationships between a source calendar and a target calendar — each with its own fully customisable transformation rules, scheduling, and exclusion filters. The application runs as a lightweight Docker container, stores its data in a local SQLite database, and optionally enforces HTTP Basic Authentication when credentials are configured.
+Self-hosted calendar sync between Microsoft Exchange / Outlook and external providers. Define **Calendar Bindings** with per-binding rules for event transformation, scheduling, and filtering — all managed from a lightweight Docker container.
 
 ## ✨ Features
 
-- **Exchange Calendar Sync** — Automatically keep calendars in sync with Microsoft Exchange / Outlook
-- **Flexible Calendar Bindings** — Create multiple source-to-target bindings with independent configuration
-- **Rich Event Transformation** — Control title handling, content copying, event styling, tags, reminders, and privacy per binding
-- **Smart Exclusion Rules** — Filter out events by RSVP response or event status before syncing
-- **Custom Sync Scheduling** — Choose a preset interval (15 / 30 / 60 min) or supply a cron expression
-- **Blazor Server UI** — Modern, real-time web interface powered by ASP.NET Core 10 Blazor
-- **SQLite Persistence** — Zero-dependency local database; mount a volume and you're done
-- **Basic Authentication** — Protect the UI with a username and password configured via environment variables
-- **Health Checks** — `/health/live` and `/health/ready` endpoints for container orchestration
-- **Docker-first** — Multi-stage, production-ready image published to GitHub Container Registry
-- **CI/CD** — GitHub Actions pipeline builds, tests, and pushes the image automatically
+- 🔄 **Calendar Bindings** — multiple independent source-to-target sync rules
+- ✏️ **Event Transformation** — title, content, styling, tags, reminders, and privacy
+- 🚫 **Exclusion Rules** — filter by RSVP response or event status
+- ⏱️ **Flexible Scheduling** — preset intervals or custom cron expression
+- 🐳 **Docker-first** — SQLite persistence, Basic Auth, health checks included
 
 ## 📋 Prerequisites
 
