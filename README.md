@@ -1,6 +1,6 @@
 # OutlookSync
 
-OutlookSync is a self-hosted Blazor application that synchronises your Microsoft Exchange / Outlook calendars with external calendar providers. It runs as a lightweight Docker container, stores its data in a local SQLite database, and is secured with HTTP Basic Authentication.
+OutlookSync is a self-hosted Blazor application that synchronises your Microsoft Exchange / Outlook calendars with external calendar providers. It runs as a lightweight Docker container, stores its data in a local SQLite database, and optionally enforces HTTP Basic Authentication when credentials are configured.
 
 ## ✨ Features
 

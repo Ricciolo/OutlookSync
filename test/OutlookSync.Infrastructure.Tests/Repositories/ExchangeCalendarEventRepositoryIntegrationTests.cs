@@ -50,7 +50,7 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
         return new Credential { FriendlyName = "Test Account Without Cache" }; // No StatusData - should fail initialization
     }
 
-    [Fact]
+    [Fact(Skip = "Requires a real Exchange Online connection and MSAL token cache (set CALENDAR_ID and MSAL_TOKEN_CACHE env vars)")]
     public async Task InitAsync_ShouldSucceed_WhenValidTokenCacheExists()
     {
         // Arrange
@@ -106,7 +106,7 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
         Assert.Contains("has not been initialized", exception.Message);
     }
 
-    [Fact]
+    [Fact(Skip = "Requires a real Exchange Online connection and MSAL token cache (set CALENDAR_ID and MSAL_TOKEN_CACHE env vars)")]
     public async Task GetAllAsync_ShouldReturnEvents_WhenValidCredentials()
     {
         // Arrange
@@ -144,7 +144,7 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
         Assert.Contains("has not been initialized", exception.Message);
     }
 
-    [Fact]
+    [Fact(Skip = "Requires a real Exchange Online connection and MSAL token cache (set CALENDAR_ID and MSAL_TOKEN_CACHE env vars)")]
     public async Task GetAvailableCalendarsAsync_ShouldReturnCalendars_WhenValidCredentials()
     {
         // Arrange
@@ -175,7 +175,7 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Requires a real Exchange Online connection and MSAL token cache (set CALENDAR_ID and MSAL_TOKEN_CACHE env vars)")]
     public async Task AddAsync_ShouldCreateEvent_WhenValidEvent()
     {
         // Arrange
@@ -214,7 +214,7 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
         Assert.Equal(calendarEvent.Body, createdEvent.Body);
     }
 
-    [Fact]
+    [Fact(Skip = "Requires a real Exchange Online connection and MSAL token cache (set CALENDAR_ID and MSAL_TOKEN_CACHE env vars)")]
     public async Task AddAsync_ShouldCreateCopiedEvent_WhenEventIsCopied()
     {
         // Arrange
@@ -256,7 +256,7 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
         Assert.Equal(originalEventId, createdEvent.OriginalEventId);
     }
 
-    [Fact]
+    [Fact(Skip = "Requires a real Exchange Online connection and MSAL token cache (set CALENDAR_ID and MSAL_TOKEN_CACHE env vars)")]
     public async Task FindCopiedEventAsync_ShouldReturnEvent_WhenCopiedEventExists()
     {
         // Arrange
@@ -301,7 +301,7 @@ namespace OutlookSync.Infrastructure.Tests.Repositories;
         Assert.Equal(originalEventExternalId, foundEvent.OriginalEventId);
     }
 
-    [Fact]
+    [Fact(Skip = "Requires a real Exchange Online connection and MSAL token cache (set CALENDAR_ID and MSAL_TOKEN_CACHE env vars)")]
     public async Task RetryPolicy_ShouldRetryOnTransientErrors()
     {
         // Arrange
