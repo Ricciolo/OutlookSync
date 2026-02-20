@@ -1,16 +1,14 @@
 # OutlookSync
 
-OutlookSync is a self-hosted Blazor application that synchronises your Microsoft Exchange / Outlook calendars with external calendar providers. It runs as a lightweight Docker container, stores its data in a local SQLite database, and optionally enforces HTTP Basic Authentication when credentials are configured.
+Self-hosted calendar sync between Microsoft Exchange / Outlook and external providers. Define **Calendar Bindings** with per-binding rules for event transformation, scheduling, and filtering — all managed from a lightweight Docker container.
 
 ## ✨ Features
 
-- **Exchange Calendar Sync** — Automatically keep calendars in sync with Microsoft Exchange / Outlook
-- **Blazor Server UI** — Modern, real-time web interface powered by ASP.NET Core 10 Blazor
-- **SQLite Persistence** — Zero-dependency local database; mount a volume and you're done
-- **Basic Authentication** — Protect the UI with a username and password configured via environment variables
-- **Health Checks** — `/health/live` and `/health/ready` endpoints for container orchestration
-- **Docker-first** — Multi-stage, production-ready image published to GitHub Container Registry
-- **CI/CD** — GitHub Actions pipeline builds, tests, and pushes the image automatically
+- 🔄 **Calendar Bindings** — multiple independent source-to-target sync rules
+- ✏️ **Event Transformation** — title, content, styling, tags, reminders, and privacy
+- 🚫 **Exclusion Rules** — filter by RSVP response or event status
+- ⏱️ **Flexible Scheduling** — preset intervals or custom cron expression
+- 🐳 **Docker-first** — SQLite persistence, Basic Auth, health checks included
 
 ## 📋 Prerequisites
 
@@ -62,6 +60,25 @@ volumes:
 ```bash
 docker compose up -d
 ```
+
+## 🔄 Calendar Sync Customisation
+
+Each **Calendar Binding** syncs events from a source calendar to a target calendar. Every binding is configured independently through the web UI.
+
+| Option | Details |
+|--------|---------|
+| **Title handling** | *Clone* (original), *Rename* (custom text), or *Hide* (placeholder) |
+| **Content** | Toggle description, participants, location, and attachments individually |
+| **Event styling** | Custom category label and busy-status override (*Free / Busy / Tentative / OOO / Working Elsewhere*) |
+| **Reminders** | Copy or disable reminders on the target event |
+| **Privacy** | Mark every synced event as private |
+| **Custom tag** | Append a text tag to the event title or description |
+| **Schedule** | 15 / 30 / 60 min presets, a custom minute value, or a cron expression |
+| **Sync range** | Number of future days to sync (default: 30, max: 365) |
+| **Exclude by RSVP** | Skip events by your response: *Accepted / Tentative / Declined / None* |
+| **Exclude by status** | Skip events by busy status: *Free / Busy / Tentative / OOO / Working Elsewhere* |
+
+---
 
 ## ⚙️ Configuration
 
