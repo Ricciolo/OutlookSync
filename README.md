@@ -1,10 +1,14 @@
 # OutlookSync
 
-OutlookSync is a self-hosted Blazor application that synchronises your Microsoft Exchange / Outlook calendars with external calendar providers. It runs as a lightweight Docker container, stores its data in a local SQLite database, and optionally enforces HTTP Basic Authentication when credentials are configured.
+OutlookSync is a self-hosted Blazor application that synchronises your Microsoft Exchange / Outlook calendars with external calendar providers. It lets you define **Calendar Bindings** — unidirectional sync relationships between a source calendar and a target calendar — each with its own fully customisable transformation rules, scheduling, and exclusion filters. The application runs as a lightweight Docker container, stores its data in a local SQLite database, and optionally enforces HTTP Basic Authentication when credentials are configured.
 
 ## ✨ Features
 
 - **Exchange Calendar Sync** — Automatically keep calendars in sync with Microsoft Exchange / Outlook
+- **Flexible Calendar Bindings** — Create multiple source-to-target bindings with independent configuration
+- **Rich Event Transformation** — Control title handling, content copying, event styling, tags, reminders, and privacy per binding
+- **Smart Exclusion Rules** — Filter out events by RSVP response or event status before syncing
+- **Custom Sync Scheduling** — Choose a preset interval (15 / 30 / 60 min) or supply a cron expression
 - **Blazor Server UI** — Modern, real-time web interface powered by ASP.NET Core 10 Blazor
 - **SQLite Persistence** — Zero-dependency local database; mount a volume and you're done
 - **Basic Authentication** — Protect the UI with a username and password configured via environment variables
@@ -62,6 +66,96 @@ volumes:
 ```bash
 docker compose up -d
 ```
+
+## 🔄 Calendar Sync Customisation
+
+Each **Calendar Binding** defines a unidirectional sync from a *source* calendar to a *target* calendar. Bindings are managed through the web UI and can be enabled, disabled, or triggered manually at any time.
+
+### Title Handling
+
+Control how the event subject is written to the target calendar:
+
+| Mode | Behaviour |
+|------|-----------|
+| **Clone** | Copy the original title unchanged |
+| **Rename** | Replace the title with a custom text you define |
+| **Hide** | Replace the title with a generic placeholder (hides the real subject) |
+
+### Content to Copy
+
+Choose which event fields are copied from the source to the target:
+
+| Option | Description |
+|--------|-------------|
+| **Copy Description** | Sync the event body / notes |
+| **Copy Participants** | Sync the attendee list |
+| **Copy Location** | Sync the meeting location |
+| **Copy Attachments** | Sync file attachments |
+
+Each option can be toggled independently per binding.
+
+### Event Styling
+
+Customise how the synced event appears in the target calendar:
+
+| Setting | Description |
+|---------|-------------|
+| **Target Category** | Assign a calendar category label to every synced event |
+| **Target Status** | Override the busy status: *Free*, *Busy*, *Tentative*, *Out of Office*, or *Working Elsewhere* |
+
+### Reminders & Privacy
+
+| Setting | Description |
+|---------|-------------|
+| **Reminder Handling** | **Copy** the original reminder(s) or **Disable** all reminders on the target event |
+| **Mark as Private** | Force every synced event to be marked as private in the target calendar |
+
+### Custom Tags
+
+Attach a custom text tag to every synced event:
+
+- **Tag text** — the string appended to the event
+- **Tag position** — place the tag in the *title* (appended to the subject) or in the *description*
+
+### Sync Schedule
+
+Configure how often each binding checks for changes:
+
+| Option | Description |
+|--------|-------------|
+| **Every 15 minutes** | Preset short interval |
+| **Every 30 minutes** | Default preset interval |
+| **Every 60 minutes** | Preset hourly interval |
+| **Custom** | Enter any number of minutes, or supply a full cron expression for fine-grained scheduling |
+
+### Sync Range
+
+**Sync Days Forward** — the number of future days included in each sync (default: **30**; valid range: 1–365). Events beyond this window are not touched.
+
+### Exclusion Rules
+
+Filter out specific events *before* they are synced:
+
+#### By RSVP Response
+
+Skip events where your response matches one or more of:
+- **Accepted** (Yes)
+- **Tentative** (Maybe)
+- **Declined** (No)
+- **No response** (None)
+
+#### By Event Status
+
+Skip events whose busy status matches one or more of:
+- **Free**
+- **Busy**
+- **Tentative**
+- **Out of Office**
+- **Working Elsewhere**
+
+Multiple values can be combined; events matching any selected value are excluded.
+
+---
 
 ## ⚙️ Configuration
 
