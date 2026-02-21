@@ -7,6 +7,8 @@ namespace OutlookSync.Infrastructure.Migrations
     /// <inheritdoc />
     public partial class InitialCreate : Migration
     {
+        private static readonly string[] s_sourceTargetColumns =
+            ["SourceCredentialId", "SourceCalendarExternalId", "TargetCredentialId", "TargetCalendarExternalId"];
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
@@ -100,7 +102,7 @@ namespace OutlookSync.Infrastructure.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_CalendarBindings_SourceTarget_Unique",
                 table: "CalendarBindings",
-                columns: new[] { "SourceCredentialId", "SourceCalendarExternalId", "TargetCredentialId", "TargetCalendarExternalId" },
+                columns: s_sourceTargetColumns,
                 unique: true);
 
             migrationBuilder.CreateIndex(

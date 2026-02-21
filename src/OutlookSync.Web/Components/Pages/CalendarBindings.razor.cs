@@ -256,6 +256,8 @@ public partial class CalendarBindings : IDisposable
 
     public void Dispose()
     {
+        GC.SuppressFinalize(this);
+
         if (_countdownTimer != null)
         {
             _countdownTimer.Stop();

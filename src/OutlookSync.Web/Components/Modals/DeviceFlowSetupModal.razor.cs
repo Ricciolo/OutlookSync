@@ -217,6 +217,7 @@ public partial class DeviceFlowSetupModal : ComponentBase, IAsyncDisposable
     /// <inheritdoc/>
     public async ValueTask DisposeAsync()
     {
+        GC.SuppressFinalize(this);
         StopPolling();
         
         if (_clipboardModule != null)

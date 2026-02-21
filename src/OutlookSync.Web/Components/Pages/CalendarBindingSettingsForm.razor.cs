@@ -12,11 +12,11 @@ public partial class CalendarBindingSettingsForm
     private bool _copyDescription = true;
     private bool _copyParticipants = true;
     private bool _copyLocation = true;
-    private bool _copyAttachments = false;
+    private bool _copyAttachments;
     private string _targetCategory = string.Empty;
     private string _targetStatus = string.Empty;
     private ReminderHandling _reminderHandling = ReminderHandling.Copy;
-    private bool _markAsPrivate = false;
+    private bool _markAsPrivate;
     private string _customTag = string.Empty;
     private bool _customTagInTitle = true;
     private string _rsvpExclusion = string.Empty;

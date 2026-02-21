@@ -20,7 +20,7 @@ public class CalendarBindingRepository(OutlookSyncDbContext context)
         Guid? excludeBindingId = null,
         CancellationToken cancellationToken = default)
     {
-        var query = _context.Set<CalendarBinding>()
+        var query = Context.Set<CalendarBinding>()
             .Where(cb => cb.SourceCredentialId == sourceCredentialId &&
                         cb.SourceCalendarExternalId == sourceExternalId &&
                         cb.TargetCredentialId == targetCredentialId &&
@@ -37,7 +37,7 @@ public class CalendarBindingRepository(OutlookSyncDbContext context)
     /// <inheritdoc />
     public async Task<IReadOnlyList<CalendarBinding>> GetEnabledAsync(CancellationToken cancellationToken = default)
     {
-        return await _context.Set<CalendarBinding>()
+        return await Context.Set<CalendarBinding>()
             .Where(cb => cb.IsEnabled)
             .ToListAsync(cancellationToken);
     }
@@ -48,7 +48,7 @@ public class CalendarBindingRepository(OutlookSyncDbContext context)
         string sourceExternalId,
         CancellationToken cancellationToken = default)
     {
-        return await _context.Set<CalendarBinding>()
+        return await Context.Set<CalendarBinding>()
             .Where(cb => cb.SourceCredentialId == sourceCredentialId &&
                         cb.SourceCalendarExternalId == sourceExternalId)
             .ToListAsync(cancellationToken);
@@ -60,7 +60,7 @@ public class CalendarBindingRepository(OutlookSyncDbContext context)
         string targetExternalId,
         CancellationToken cancellationToken = default)
     {
-        return await _context.Set<CalendarBinding>()
+        return await Context.Set<CalendarBinding>()
             .Where(cb => cb.TargetCredentialId == targetCredentialId &&
                         cb.TargetCalendarExternalId == targetExternalId)
             .ToListAsync(cancellationToken);
@@ -72,7 +72,7 @@ public class CalendarBindingRepository(OutlookSyncDbContext context)
         string externalId,
         CancellationToken cancellationToken = default)
     {
-        return await _context.Set<CalendarBinding>()
+        return await Context.Set<CalendarBinding>()
             .Where(cb => (cb.SourceCredentialId == credentialId && cb.SourceCalendarExternalId == externalId) ||
                         (cb.TargetCredentialId == credentialId && cb.TargetCalendarExternalId == externalId))
             .ToListAsync(cancellationToken);

@@ -8,7 +8,7 @@ namespace OutlookSync.Application.Services;
 /// <summary>
 /// Service for synchronizing multiple calendars by copying events between them using CalendarBindings
 /// </summary>
-public class CalendarsSyncService(
+public partial class CalendarsSyncService(
     ICalendarBindingRepository calendarBindingRepository,
     ICredentialRepository credentialRepository,
     ICalendarEventRepositoryFactory calendarEventRepositoryFactory,
@@ -17,13 +17,13 @@ public class CalendarsSyncService(
 {
     public async Task<CalendarsSyncResult> SyncAllCalendarsAsync(CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Starting synchronization using calendar bindings");
+        LogStartingSyncAll(logger);
 
         var bindings = await calendarBindingRepository.GetEnabledAsync(cancellationToken);
 
         if (bindings.Count == 0)
         {
-            logger.LogWarning("No enabled calendar bindings found for synchronization");
+            LogNoBindingsFound(logger);
             return CalendarsSyncResult.Success(0, 0);
         }
 
@@ -53,13 +53,11 @@ public class CalendarsSyncService(
             {
                 failed++;
                 errors.Add($"Binding {binding.Name}: {ex.Message}");
-                logger.LogError(ex, "Error syncing binding {BindingId}", binding.Id);
+                LogErrorSyncingBinding(logger, ex, binding.Id);
             }
         }
 
-        logger.LogInformation(
-            "Synchronization completed. Total: {Total}, Successful: {Successful}, Failed: {Failed}, Events copied: {EventsCopied}",
-            bindings.Count, successful, failed, totalEventsCopied);
+        LogSyncAllCompleted(logger, bindings.Count, successful, failed, totalEventsCopied);
 
         return failed == 0
             ? CalendarsSyncResult.Success(bindings.Count, totalEventsCopied)
@@ -68,19 +66,19 @@ public class CalendarsSyncService(
 
     public async Task<SyncResult> SyncCalendarBindingAsync(Guid bindingId, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Starting synchronization for binding {BindingId}", bindingId);
+        LogStartingSyncBinding(logger, bindingId);
 
         var binding = await calendarBindingRepository.GetByIdAsync(bindingId, cancellationToken);
         
         if (binding == null)
         {
-            logger.LogWarning("Calendar binding {BindingId} not found", bindingId);
+            LogBindingNotFound(logger, bindingId);
             return SyncResult.Failure("Calendar binding not found");
         }
 
         if (!binding.IsEnabled)
         {
-            logger.LogWarning("Calendar binding {BindingId} is disabled", bindingId);
+            LogBindingDisabled(logger, bindingId);
             return SyncResult.Failure("Calendar binding is disabled");
         }
 
@@ -90,11 +88,11 @@ public class CalendarsSyncService(
         try
         {
             await unitOfWork.SaveChangesAsync(cancellationToken);
-            logger.LogInformation("Changes saved successfully for binding {BindingId}", bindingId);
+            LogChangesSaved(logger, bindingId);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to save changes after syncing binding {BindingId}", bindingId);
+            LogErrorSavingChanges(logger, ex, bindingId);
             throw;
         }
 
@@ -152,18 +150,14 @@ public class CalendarsSyncService(
                 .Where(e => !e.IsCopiedEvent)
                 .ToList();
 
-            logger.LogInformation(
-                "Found {TotalEvents} events in source calendar '{SourceName}', {OriginalEvents} are original (not copied)",
-                sourceEvents.Count, binding.Name, originalEvents.Count);
+            LogEventsFound(logger, sourceEvents.Count, binding.Name, originalEvents.Count);
 
             // Filter events based on binding exclusion rules
             var eventsToSync = originalEvents
                 .Where(e => EventFilteringService.ShouldSyncEvent(e, binding.Configuration))
                 .ToList();
 
-            logger.LogInformation(
-                "After filtering, {EventsToSync} events will be synchronized for binding {BindingName}",
-                eventsToSync.Count, binding.Name);
+            LogEventsAfterFiltering(logger, eventsToSync.Count, binding.Name);
 
             var eventsSynced = 0;
 
@@ -183,9 +177,7 @@ public class CalendarsSyncService(
                         // Event already exists - check if it needs updating
                         if (HasEventChanged(sourceEvent, existingCopy))
                         {
-                            logger.LogDebug(
-                                "Event {EventSubject} has changed, updating",
-                                sourceEvent.Subject);
+                            LogEventChanged(logger, sourceEvent.Subject);
 
                             // Transform event with existing ExternalId
                             var updatedEvent = EventFilteringService.TransformEvent(
@@ -198,15 +190,11 @@ public class CalendarsSyncService(
                             await targetRepository.UpdateAsync(updatedEvent, binding.TargetCalendarExternalId, cancellationToken);
                             eventsSynced++;
 
-                            logger.LogDebug(
-                                "Updated event {EventSubject} for binding {BindingName}",
-                                sourceEvent.Subject, binding.Name);
+                            LogEventUpdated(logger, sourceEvent.Subject, binding.Name);
                         }
                         else
                         {
-                            logger.LogDebug(
-                                "Event {EventSubject} unchanged, skipping",
-                                sourceEvent.Subject);
+                            LogEventUnchanged(logger, sourceEvent.Subject);
                         }
 
                         continue;
@@ -225,16 +213,11 @@ public class CalendarsSyncService(
 
                     eventsSynced++;
 
-                    logger.LogDebug(
-                        "Copied event {EventSubject} for binding {BindingName}",
-                        sourceEvent.Subject, binding.Name);
+                    LogEventCopied(logger, sourceEvent.Subject, binding.Name);
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(
-                        ex,
-                        "Error syncing event {EventId} for binding {BindingName}",
-                        sourceEvent.ExternalId, binding.Name);
+                    LogErrorSyncingEvent(logger, ex, sourceEvent.ExternalId, binding.Name);
                 }
             }
 
@@ -248,9 +231,7 @@ public class CalendarsSyncService(
                 binding.TargetCalendarExternalId,
                 cancellationToken);
 
-            logger.LogInformation(
-                "Found {CopiedEventCount} copied events in target calendar for binding {BindingName}",
-                copiedEvents.Count, binding.Name);
+            LogCopiedEventsFound(logger, copiedEvents.Count, binding.Name);
 
             foreach (var copiedEvent in copiedEvents)
             {
@@ -259,9 +240,7 @@ public class CalendarsSyncService(
                     // If the original event no longer exists in source, delete the copy
                     if (copiedEvent.OriginalEventId == null || !sourceEventIds.Contains(copiedEvent.OriginalEventId))
                     {
-                        logger.LogDebug(
-                            "Deleting orphaned event {EventSubject} (original ID: {OriginalId}) from target",
-                            copiedEvent.Subject, copiedEvent.OriginalEventId);
+                        LogDeletingOrphanedEvent(logger, copiedEvent.Subject, copiedEvent.OriginalEventId);
 
                         var deleted = await targetRepository.DeleteAsync(
                             copiedEvent.ExternalId,
@@ -271,33 +250,26 @@ public class CalendarsSyncService(
                         if (deleted)
                         {
                             eventsSynced++;
-                            logger.LogDebug(
-                                "Deleted orphaned event {EventSubject} from target",
-                                copiedEvent.Subject);
+                            LogOrphanedEventDeleted(logger, copiedEvent.Subject);
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(
-                        ex,
-                        "Error deleting event {EventId} for binding {BindingName}",
-                        copiedEvent.ExternalId, binding.Name);
+                    LogErrorDeletingEvent(logger, ex, copiedEvent.ExternalId, binding.Name);
                 }
             }
 
             binding.RecordSuccessfulSync(eventsToSync.Count);
             await calendarBindingRepository.UpdateAsync(binding, cancellationToken);
 
-            logger.LogInformation(
-                "Successfully synced {EventCount} events for binding {BindingName} ({ModifiedCount} modified)",
-                eventsToSync.Count, binding.Name, eventsSynced);
+            LogSyncSuccess(logger, eventsToSync.Count, binding.Name, eventsSynced);
 
             return SyncResult.Success(eventsSynced);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error syncing binding {BindingId}", binding.Id);
+            LogErrorSyncingBinding(logger, ex, binding.Id);
             binding.RecordFailedSync(ex.Message);
             await calendarBindingRepository.UpdateAsync(binding, cancellationToken);
             return SyncResult.Failure(ex.Message);
@@ -309,11 +281,11 @@ public class CalendarsSyncService(
             {
                 await credentialRepository.UpdateAsync(sourceCredential, cancellationToken);
                 await credentialRepository.UpdateAsync(targetCredential, cancellationToken);
-                logger.LogDebug("Credentials updated for binding {BindingName}", binding.Name);
+                LogCredentialsUpdated(logger, binding.Name);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failed to update credentials for binding {BindingId}", binding.Id);
+                LogErrorUpdatingCredentials(logger, ex, binding.Id);
             }
         }
     }
