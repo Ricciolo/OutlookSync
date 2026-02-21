@@ -345,7 +345,7 @@ public partial class CalendarsSyncBackgroundService(
 
         _bindingSemaphores.Clear();
         
-        GC.SuppressFinalize(this);
         base.Dispose();
+        GC.SuppressFinalize(this);
     }
 }
