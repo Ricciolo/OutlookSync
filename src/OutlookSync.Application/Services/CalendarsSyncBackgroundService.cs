@@ -11,7 +11,7 @@ namespace OutlookSync.Application.Services;
 /// <summary>
 /// Background service for automatic and manual calendar synchronization
 /// </summary>
-public class CalendarsSyncBackgroundService(
+public partial class CalendarsSyncBackgroundService(
     IServiceScopeFactory serviceScopeFactory,
     ILogger<CalendarsSyncBackgroundService> logger) : BackgroundService, ICalendarsSyncBackgroundService
 {
@@ -23,7 +23,7 @@ public class CalendarsSyncBackgroundService(
     /// <summary>
     /// Holds the sync state for a specific calendar binding
     /// </summary>
-    private class BindingSyncState
+    private sealed class BindingSyncState
     {
         public CalendarBinding Binding { get; set; } = null!;
         public DateTime NextSyncAt { get; set; }
@@ -62,7 +62,7 @@ public class CalendarsSyncBackgroundService(
     /// <inheritdoc />
     public async Task RescheduleAllAsync(CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Rescheduling all calendar bindings");
+        LogReschedulingAll(logger);
         
         // Cancel all scheduled tasks
         _scheduleCancellation?.Cancel();
@@ -88,7 +88,7 @@ public class CalendarsSyncBackgroundService(
     /// <inheritdoc />
     public async Task<bool> TriggerSyncAllAsync(CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Manual synchronization of all bindings triggered");
+        LogManualSyncAllTriggered(logger);
         
         await using var scope = serviceScopeFactory.CreateAsyncScope();
         var bindingRepository = scope.ServiceProvider.GetRequiredService<ICalendarBindingRepository>();
@@ -107,7 +107,7 @@ public class CalendarsSyncBackgroundService(
     /// <inheritdoc />
     public async Task<bool> TriggerSyncBindingAsync(Guid bindingId, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Manual synchronization of binding {BindingId} triggered", bindingId);
+        LogManualSyncBindingTriggered(logger, bindingId);
         
         // Get or create semaphore for this binding
         var semaphore = _bindingSemaphores.GetOrAdd(bindingId, _ => new SemaphoreSlim(1, 1));
@@ -115,7 +115,7 @@ public class CalendarsSyncBackgroundService(
         // Try to acquire the semaphore without blocking
         if (!await semaphore.WaitAsync(0, cancellationToken))
         {
-            logger.LogWarning("Cannot trigger sync for binding {BindingId}: already syncing", bindingId);
+            LogAlreadySyncing(logger, bindingId);
             return false;
         }
 
@@ -127,7 +127,7 @@ public class CalendarsSyncBackgroundService(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        logger.LogInformation("Calendar synchronization service started");
+        LogServiceStarted(logger);
 
         _scheduleCancellation = new CancellationTokenSource();
 
@@ -144,7 +144,7 @@ public class CalendarsSyncBackgroundService(
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
-            logger.LogInformation("Calendar synchronization service stopping");
+            LogServiceStopping(logger);
         }
 
         // Cancel all scheduled tasks
@@ -162,7 +162,7 @@ public class CalendarsSyncBackgroundService(
             var bindingRepository = scope.ServiceProvider.GetRequiredService<ICalendarBindingRepository>();
             var bindings = await bindingRepository.GetEnabledAsync(cancellationToken);
             
-            logger.LogInformation("Loaded {Count} enabled calendar bindings", bindings.Count);
+            LogBindingsLoaded(logger, bindings.Count);
             
             _bindingStates.Clear();
             
@@ -176,14 +176,12 @@ public class CalendarsSyncBackgroundService(
                     IsSyncing = false
                 };
                 
-                logger.LogDebug(
-                    "Binding {BindingId} ({Name}) scheduled for next sync at {NextSyncAt}",
-                    binding.Id, binding.Name, nextSyncAt);
+                LogBindingScheduled(logger, binding.Id, binding.Name, nextSyncAt);
             }
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error loading calendar bindings");
+            LogErrorLoadingBindings(logger, ex);
         }
     }
 
@@ -201,9 +199,7 @@ public class CalendarsSyncBackgroundService(
         
         state.SyncTask = Task.Run(async () =>
         {
-            logger.LogDebug(
-                "Started scheduling loop for binding {BindingId} ({Name})",
-                bindingId, state.Binding.Name);
+            LogSchedulingLoopStarted(logger, bindingId, state.Binding.Name);
 
             while (!cancellationToken.IsCancellationRequested)
             {
@@ -213,9 +209,7 @@ public class CalendarsSyncBackgroundService(
                     var delay = state.NextSyncAt - DateTime.UtcNow;
                     if (delay > TimeSpan.Zero)
                     {
-                        logger.LogDebug(
-                            "Binding {BindingId} ({Name}) will sync in {Delay}",
-                            bindingId, state.Binding.Name, delay);
+                        LogBindingWillSync(logger, bindingId, state.Binding.Name, delay);
 
                         await Task.Delay(delay, cancellationToken);
                     }
@@ -231,27 +225,25 @@ public class CalendarsSyncBackgroundService(
                     // Check if binding was disabled during sync
                     if (!state.Binding.IsEnabled)
                     {
-                        logger.LogInformation(
-                            "Binding {BindingId} was disabled, stopping scheduling loop",
-                            bindingId);
+                        LogBindingDisabled(logger, bindingId);
                         break;
                     }
                 }
                 catch (OperationCanceledException)
                 {
-                    logger.LogDebug("Scheduling loop cancelled for binding {BindingId}", bindingId);
+                    LogSchedulingLoopCancelled(logger, bindingId);
                     break;
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "Error in scheduling loop for binding {BindingId}", bindingId);
+                    LogErrorInSchedulingLoop(logger, ex, bindingId);
                     
                     // Wait a bit before retrying to avoid tight error loop
                     await Task.Delay(TimeSpan.FromMinutes(1), cancellationToken);
                 }
             }
             
-            logger.LogDebug("Scheduling loop ended for binding {BindingId}", bindingId);
+            LogSchedulingLoopEnded(logger, bindingId);
         }, cancellationToken);
     }
 
@@ -262,7 +254,7 @@ public class CalendarsSyncBackgroundService(
         
         if (!_bindingStates.TryGetValue(bindingId, out var state))
         {
-            logger.LogWarning("Binding {BindingId} not found in states", bindingId);
+            LogBindingNotFound(logger, bindingId);
             semaphore.Release();
             return;
         }
@@ -272,7 +264,7 @@ public class CalendarsSyncBackgroundService(
 
         try
         {
-            logger.LogInformation("Starting synchronization for binding {BindingId} ({Name})", bindingId, state.Binding.Name);
+            LogSyncStarted(logger, bindingId, state.Binding.Name);
 
             await using var scope = serviceScopeFactory.CreateAsyncScope();
             var syncService = scope.ServiceProvider.GetRequiredService<ICalendarsSyncService>();
@@ -280,20 +272,16 @@ public class CalendarsSyncBackgroundService(
 
             if (result.IsSuccess)
             {
-                logger.LogInformation(
-                    "Synchronization completed successfully for binding {BindingId} ({Name}), {EventCount} events synced",
-                    bindingId, state.Binding.Name, result.ItemsSynced);
+                LogSyncCompleted(logger, bindingId, state.Binding.Name, result.ItemsSynced);
             }
             else
             {
-                logger.LogWarning(
-                    "Synchronization failed for binding {BindingId} ({Name}): {Error}",
-                    bindingId, state.Binding.Name, result.ErrorMessage);
+                LogSyncFailed(logger, bindingId, state.Binding.Name, result.ErrorMessage);
             }
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error during synchronization of binding {BindingId} ({Name})", bindingId, state.Binding.Name);
+            LogSyncError(logger, ex, bindingId, state.Binding.Name);
         }
         finally
         {
@@ -314,14 +302,12 @@ public class CalendarsSyncBackgroundService(
                 state.Binding = updatedBinding;
                 state.NextSyncAt = CalculateNextSyncTime(updatedBinding);
 
-                logger.LogDebug(
-                    "Binding {BindingId} ({Name}) next sync scheduled at {NextSyncAt}",
-                    bindingId, state.Binding.Name, state.NextSyncAt);
+                LogNextSyncScheduled(logger, bindingId, state.Binding.Name, state.NextSyncAt);
             }
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error reloading binding {BindingId} after sync", bindingId);
+            LogErrorReloadingBinding(logger, ex, bindingId);
         }
     }
 
@@ -340,7 +326,7 @@ public class CalendarsSyncBackgroundService(
 
         if (activeTasks.Count > 0)
         {
-            logger.LogInformation("Waiting for {Count} active synchronizations to complete", activeTasks.Count);
+            LogWaitingForActiveSyncs(logger, activeTasks.Count);
             await Task.WhenAll(activeTasks);
         }
     }
@@ -359,6 +345,7 @@ public class CalendarsSyncBackgroundService(
 
         _bindingSemaphores.Clear();
         
+        GC.SuppressFinalize(this);
         base.Dispose();
     }
 }

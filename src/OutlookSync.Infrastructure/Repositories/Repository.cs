@@ -10,7 +10,12 @@ namespace OutlookSync.Infrastructure.Repositories;
 /// </summary>
 public class Repository<T>(OutlookSyncDbContext context) : IRepository<T> where T : Entity, IAggregateRoot
 {
-    protected readonly OutlookSyncDbContext _context = context;
+    private readonly OutlookSyncDbContext _context = context;
+
+    /// <summary>
+    /// Gets the database context for use by derived classes.
+    /// </summary>
+    protected OutlookSyncDbContext Context => _context;
 
     /// <inheritdoc />
     public virtual IQueryable<T> Query => _context.Set<T>();
