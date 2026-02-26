@@ -55,7 +55,6 @@ WORKDIR "/src/src/OutlookSync.Web"
 RUN dotnet publish "OutlookSync.Web.csproj" \
     -c $BUILD_CONFIGURATION \
     -o /app/publish \
-    --no-restore \
     /p:UseAppHost=false
 
 # Stage 5: Final release image
