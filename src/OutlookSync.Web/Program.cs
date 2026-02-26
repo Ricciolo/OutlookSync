@@ -47,6 +47,7 @@ app.MapHealthChecks("/health/ready", new()
 
 app.UseAntiforgery();
 
+app.UseStaticFiles(); 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
