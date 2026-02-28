@@ -79,6 +79,6 @@ public partial class Home : ComponentBase
         if (timeSpan.TotalDays < 7)
             return $"{(int)timeSpan.TotalDays}d ago";
 
-        return lastSync.ToLocalTime().ToString("MMM dd, yyyy");
+        return lastSync.ToLocalTime().ToString("MMM dd, yyyy", System.Globalization.CultureInfo.InvariantCulture);
     }
 }

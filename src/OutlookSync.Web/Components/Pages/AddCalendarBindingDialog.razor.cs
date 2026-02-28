@@ -89,7 +89,7 @@ public partial class AddCalendarBindingDialog
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Failed to load credentials");
+            LogFailedToLoadCredentials(Logger, ex);
             _errorMessage = "Failed to load credentials. Please try again.";
         }
         finally
@@ -130,7 +130,7 @@ public partial class AddCalendarBindingDialog
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Failed to load source calendars");
+            LogFailedToLoadSourceCalendars(Logger, ex);
             _errorMessage = $"Failed to load calendars: {ex.Message}";
         }
         finally
@@ -172,7 +172,7 @@ public partial class AddCalendarBindingDialog
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Failed to load target calendars");
+            LogFailedToLoadTargetCalendars(Logger, ex);
             _errorMessage = $"Failed to load calendars: {ex.Message}";
         }
         finally
@@ -287,8 +287,7 @@ public partial class AddCalendarBindingDialog
             await CalendarBindingRepository.AddAsync(binding);
             await UnitOfWork.SaveChangesAsync();
 
-            Logger.LogInformation("Calendar binding {BindingName} added successfully with ID {BindingId}", 
-                binding.Name, binding.Id);
+            LogBindingAdded(Logger, binding.Name, binding.Id);
 
             CloseDialog();
             
@@ -296,7 +295,7 @@ public partial class AddCalendarBindingDialog
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Failed to save calendar binding");
+            LogFailedToSaveBinding(Logger, ex);
             _errorMessage = $"Failed to save binding: {ex.Message}";
         }
         finally

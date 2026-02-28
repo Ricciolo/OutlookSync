@@ -102,7 +102,7 @@ public partial class EditCalendarBindingDialog
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Failed to load names for binding {BindingId}", _binding.Id);
+            LogFailedToLoadNames(Logger, ex, _binding.Id);
             _sourceCredentialName = "Error loading name";
             _sourceCalendarName = "Error loading name";
             _targetCredentialName = "Error loading name";
@@ -161,7 +161,7 @@ public partial class EditCalendarBindingDialog
             await CalendarBindingRepository.UpdateAsync(_binding);
             await UnitOfWork.SaveChangesAsync();
 
-            Logger.LogInformation("Calendar binding {BindingId} updated successfully", _binding.Id);
+            LogBindingUpdated(Logger, _binding.Id);
 
             _successMessage = "Binding updated successfully!";
             StateHasChanged();
@@ -175,7 +175,7 @@ public partial class EditCalendarBindingDialog
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Failed to update calendar binding {BindingId}", _binding.Id);
+            LogFailedToUpdateBinding(Logger, ex, _binding.Id);
             _errorMessage = $"Failed to update binding: {ex.Message}";
         }
         finally

@@ -215,7 +215,7 @@ public record CalendarBindingConfiguration
     /// <summary>
     /// Whether to copy attachments
     /// </summary>
-    public bool CopyAttachments { get; init; } = false;
+    public bool CopyAttachments { get; init; }
     
     /// <summary>
     /// How to handle reminders
@@ -225,7 +225,7 @@ public record CalendarBindingConfiguration
     /// <summary>
     /// Whether to mark synchronized events as private
     /// </summary>
-    public bool MarkAsPrivate { get; init; } = false;
+    public bool MarkAsPrivate { get; init; }
     
     /// <summary>
     /// Custom tag to add to title or description of synchronized events
