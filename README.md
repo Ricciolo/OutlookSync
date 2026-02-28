@@ -1,4 +1,5 @@
 # OutlookSync
+<img width="150" alt="outlooksync" src="https://github.com/user-attachments/assets/1faeaa77-a609-4300-b93b-01b8765d2f50" />
 
 Self-hosted calendar sync between Microsoft Exchange / Outlook and external providers. Define **Calendar Bindings** with per-binding rules for event transformation, scheduling, and filtering — all managed from a lightweight Docker container.
 
