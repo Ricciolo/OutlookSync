@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  PROJECT_PATH: src/OutlookSync.Web/OutlookSync.Web.csproj
+
+jobs:
+  release:
+    name: Publish and Release
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        global-json-file: global.json
+
+    - name: Publish
+      run: >
+        dotnet publish ${{ env.PROJECT_PATH }}
+        --configuration Release
+        --output ./publish
+
+    - name: Create archive
+      run: zip -r outlooksync.zip ./publish
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: release-${{ github.run_number }}
+        name: Release ${{ github.run_number }}
+        files: outlooksync.zip
+        generate_release_notes: true
