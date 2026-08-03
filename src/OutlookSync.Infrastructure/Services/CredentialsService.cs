@@ -27,6 +27,8 @@ public partial class CredentialsService(ILogger<CredentialsService> logger) : IC
 
         LogInitiatingDeviceCodeFlow(logger, friendlyName);
 
+        CancellationTokenSource? deviceCodeCts = null;
+
         try
         {
             // Create the public client application
@@ -46,10 +48,10 @@ public partial class CredentialsService(ILogger<CredentialsService> logger) : IC
                 updateStatusData: data => credential.UpdateStatusData(data));
 
             // Create a cancellation token source for the device code flow
-            var deviceCodeCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            deviceCodeCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             
             // Use TaskCompletionSource to wait for device code generation
-            var deviceCodeTcs = new TaskCompletionSource<DeviceCodeResult>();
+            var deviceCodeTcs = new TaskCompletionSource<DeviceCodeResult>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             // Start the device code flow (but don't await it yet)
             var authTask = app.AcquireTokenWithDeviceCode(
@@ -64,6 +66,8 @@ public partial class CredentialsService(ILogger<CredentialsService> logger) : IC
                     return Task.CompletedTask;
                 })
                 .ExecuteAsync(deviceCodeCts.Token);
+
+            _ = PropagateDeviceCodeRequestFailureAsync(authTask, deviceCodeTcs);
 
             // Wait for the device code to be generated
             var deviceCodeResult = await deviceCodeTcs.Task.WaitAsync(cancellationToken);
@@ -95,18 +99,35 @@ public partial class CredentialsService(ILogger<CredentialsService> logger) : IC
         }
         catch (MsalException ex)
         {
+            deviceCodeCts?.Dispose();
             LogMsalInitiationFailed(logger, ex, friendlyName);
             return DeviceCodeInitiationResult.Failure($"Authentication initiation failed: {ex.Message}");
         }
         catch (OperationCanceledException)
         {
+            deviceCodeCts?.Dispose();
             LogInitiationCancelled(logger, friendlyName);
             return DeviceCodeInitiationResult.Failure("Authentication initiation was cancelled");
         }
         catch (Exception ex)
         {
+            deviceCodeCts?.Dispose();
             LogUnexpectedInitiationError(logger, ex, friendlyName);
             return DeviceCodeInitiationResult.Failure($"An unexpected error occurred: {ex.Message}");
+        }
+    }
+
+    private static async Task PropagateDeviceCodeRequestFailureAsync(
+        Task<AuthenticationResult> authenticationTask,
+        TaskCompletionSource<DeviceCodeResult> deviceCodeTcs)
+    {
+        try
+        {
+            await authenticationTask.ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            deviceCodeTcs.TrySetException(exception);
         }
     }
 

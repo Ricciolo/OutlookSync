@@ -30,7 +30,7 @@ public static class MsalHelper
     {
         return PublicClientApplicationBuilder
             .Create(OfficeClientId)
-            .WithAuthority(AadAuthorityAudience.AzureAdAndPersonalMicrosoftAccount)
+            .WithAuthority(AadAuthorityAudience.AzureAdMultipleOrgs)
             .Build();
     }
     
