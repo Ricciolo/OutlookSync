@@ -455,7 +455,6 @@ public partial class ExchangeCalendarEventRepository : ICalendarEventRepository
             appointment.Start = calendarEvent.Start;
             appointment.End = calendarEvent.End;
             appointment.IsAllDayEvent = calendarEvent.IsAllDay;
-            appointment.IsOnlineMeeting = calendarEvent.IsOnlineMeeting;            
 
             // Update location
             appointment.Location = calendarEvent.Location ?? string.Empty;
