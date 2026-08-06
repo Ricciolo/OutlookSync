@@ -337,8 +337,7 @@ public partial class ExchangeCalendarEventRepository : ICalendarEventRepository
                     calendarEvent.Body ?? string.Empty),
                 Start = calendarEvent.Start,
                 End = calendarEvent.End,
-                IsAllDayEvent = calendarEvent.IsAllDay,
-                IsOnlineMeeting = calendarEvent.IsOnlineMeeting
+                IsAllDayEvent = calendarEvent.IsAllDay
             };
 
             // Set location
