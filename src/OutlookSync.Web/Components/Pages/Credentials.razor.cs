@@ -14,6 +14,9 @@ public partial class Credentials
     private bool _showDeleteConfirmation;
     private Credential? _credentialToDelete;
     private bool _showHelp;
+    private Guid? _refreshingCredentialId;
+    private string? _statusMessage;
+    private bool _statusIsError;
 
     /// <inheritdoc/>
     protected override async Task OnInitializedAsync()
@@ -57,20 +60,38 @@ public partial class Credentials
     }
 
     /// <summary>
-    /// Refreshes the authentication token for a credential (synchronous wrapper)
+    /// Refreshes the authentication token for a credential.
     /// </summary>
-    private void RefreshCredential(Credential credential) => _ = RefreshCredentialAsync(credential);
-
-    /// <summary>
-    /// Refreshes the authentication token for a credential
-    /// </summary>
-#pragma warning disable IDE0060 // Remove unused parameter - Parameter will be used when implemented
     private async Task RefreshCredentialAsync(Credential credential)
     {
-        // TODO: Implement token refresh logic using the existing credential
-        await LoadCredentialsAsync();
+        _refreshingCredentialId = credential.Id;
+        _statusMessage = null;
+
+        try
+        {
+            var result = await CredentialsService.RefreshCredentialAsync(credential);
+            if (!result.IsSuccess)
+            {
+                _statusIsError = true;
+                _statusMessage = result.ErrorMessage ?? "Token refresh failed.";
+                return;
+            }
+
+            await UnitOfWork.SaveChangesAsync();
+            _statusIsError = false;
+            _statusMessage = "Token refreshed successfully.";
+            await LoadCredentialsAsync();
+        }
+        catch (Exception ex)
+        {
+            _statusIsError = true;
+            _statusMessage = $"Token refresh failed: {ex.Message}";
+        }
+        finally
+        {
+            _refreshingCredentialId = null;
+        }
     }
-#pragma warning restore IDE0060
 
     private void DeleteCredential(Credential credential)
     {

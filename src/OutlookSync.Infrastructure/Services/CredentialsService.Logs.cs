@@ -46,6 +46,9 @@ public partial class CredentialsService
     [LoggerMessage(LogLevel.Error, "Unexpected error during credential completion for session: {SessionId}")]
     private static partial void LogUnexpectedCompletionError(ILogger logger, Exception exception, Guid sessionId);
 
+    [LoggerMessage(LogLevel.Error, "MSAL token refresh failed for credential: {FriendlyName}")]
+    private static partial void LogMsalRefreshFailed(ILogger logger, Exception exception, string friendlyName);
+
     [LoggerMessage(LogLevel.Debug, "Cleaned up expired session: {SessionId} (expired at {ExpiresOn})")]
     private static partial void LogSessionCleanedUp(ILogger logger, Guid sessionId, DateTimeOffset expiresOn);
 

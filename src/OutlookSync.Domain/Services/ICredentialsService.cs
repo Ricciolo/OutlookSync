@@ -26,6 +26,16 @@ public interface ICredentialsService
     Task<CredentialCompletionResult> CompleteCredentialAsync(
         Guid sessionId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Refreshes an existing credential using its serialized MSAL token cache.
+    /// </summary>
+    /// <param name="credential">The credential to refresh.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A result containing the refreshed credential or error information.</returns>
+    Task<CredentialCompletionResult> RefreshCredentialAsync(
+        Credential credential,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>

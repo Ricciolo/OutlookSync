@@ -205,6 +205,56 @@ public partial class CredentialsService(ILogger<CredentialsService> logger) : IC
         }
     }
 
+    /// <inheritdoc/>
+    public async Task<CredentialCompletionResult> RefreshCredentialAsync(
+        Credential credential,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(credential);
+
+        if (credential.StatusData is not { Length: > 0 })
+        {
+            return CredentialCompletionResult.Failure(
+                "No token cache is available. Please create the credential again.");
+        }
+
+        try
+        {
+            var app = MsalHelper.CreatePublicClientApplication();
+            MsalHelper.ConfigureTokenCache(
+                app,
+                getStatusData: () => credential.StatusData,
+                updateStatusData: data => credential.UpdateStatusData(data));
+
+            var account = (await app.GetAccountsAsync().ConfigureAwait(false)).FirstOrDefault();
+            if (account is null)
+            {
+                return CredentialCompletionResult.Failure(
+                    "The refresh token is no longer available. Please create the credential again.");
+            }
+
+            await app.AcquireTokenSilent(MsalHelper.EwsScopes, account)
+                .ExecuteAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            return CredentialCompletionResult.Success(credential);
+        }
+        catch (MsalUiRequiredException)
+        {
+            return CredentialCompletionResult.Failure(
+                "Microsoft requires you to sign in again. Please create the credential again.");
+        }
+        catch (MsalException ex)
+        {
+            LogMsalRefreshFailed(logger, ex, credential.FriendlyName);
+            return CredentialCompletionResult.Failure($"Token refresh failed: {ex.Message}");
+        }
+        catch (OperationCanceledException)
+        {
+            return CredentialCompletionResult.Failure("Token refresh was cancelled.");
+        }
+    }
+
     /// <summary>
     /// Cleans up expired authentication sessions to prevent memory leaks
     /// </summary>
