@@ -22,10 +22,30 @@ public partial class CredentialsService(ILogger<CredentialsService> logger) : IC
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(friendlyName, nameof(friendlyName));
 
+        return await StartDeviceCodeFlowAsync(
+            new Credential { FriendlyName = friendlyName },
+            cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task<DeviceCodeInitiationResult> ReauthenticateCredentialAsync(
+        Credential credential,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(credential);
+
+        return await StartDeviceCodeFlowAsync(credential, cancellationToken);
+    }
+
+    private async Task<DeviceCodeInitiationResult> StartDeviceCodeFlowAsync(
+        Credential credential,
+        CancellationToken cancellationToken)
+    {
+
         // Cleanup expired sessions to prevent memory leaks
         CleanupExpiredSessions();
 
-        LogInitiatingDeviceCodeFlow(logger, friendlyName);
+        LogInitiatingDeviceCodeFlow(logger, credential.FriendlyName);
 
         CancellationTokenSource? deviceCodeCts = null;
 
@@ -33,12 +53,6 @@ public partial class CredentialsService(ILogger<CredentialsService> logger) : IC
         {
             // Create the public client application
             var app = MsalHelper.CreatePublicClientApplication();
-
-            // Create a new credential entity
-            var credential = new Credential
-            {
-                FriendlyName = friendlyName
-            };
 
             // Configure token cache BEFORE starting authentication
             // This ensures events are registered when MSAL serializes the token
@@ -77,7 +91,7 @@ public partial class CredentialsService(ILogger<CredentialsService> logger) : IC
             var session = new PendingAuthSession
             {
                 SessionId = sessionId,
-                FriendlyName = friendlyName,
+                FriendlyName = credential.FriendlyName,
                 Credential = credential,
                 PublicClientApp = app,
                 AuthenticationTask = authTask,
@@ -100,19 +114,19 @@ public partial class CredentialsService(ILogger<CredentialsService> logger) : IC
         catch (MsalException ex)
         {
             deviceCodeCts?.Dispose();
-            LogMsalInitiationFailed(logger, ex, friendlyName);
+            LogMsalInitiationFailed(logger, ex, credential.FriendlyName);
             return DeviceCodeInitiationResult.Failure($"Authentication initiation failed: {ex.Message}");
         }
         catch (OperationCanceledException)
         {
             deviceCodeCts?.Dispose();
-            LogInitiationCancelled(logger, friendlyName);
+            LogInitiationCancelled(logger, credential.FriendlyName);
             return DeviceCodeInitiationResult.Failure("Authentication initiation was cancelled");
         }
         catch (Exception ex)
         {
             deviceCodeCts?.Dispose();
-            LogUnexpectedInitiationError(logger, ex, friendlyName);
+            LogUnexpectedInitiationError(logger, ex, credential.FriendlyName);
             return DeviceCodeInitiationResult.Failure($"An unexpected error occurred: {ex.Message}");
         }
     }
@@ -215,7 +229,7 @@ public partial class CredentialsService(ILogger<CredentialsService> logger) : IC
         if (credential.StatusData is not { Length: > 0 })
         {
             return CredentialCompletionResult.Failure(
-                "No token cache is available. Please create the credential again.");
+                "No token cache is available. Please use 'Sign in again' to renew this credential.");
         }
 
         try
@@ -230,7 +244,7 @@ public partial class CredentialsService(ILogger<CredentialsService> logger) : IC
             if (account is null)
             {
                 return CredentialCompletionResult.Failure(
-                    "The refresh token is no longer available. Please create the credential again.");
+                    "The refresh token is no longer available. Please use 'Sign in again' to renew this credential.");
             }
 
             await app.AcquireTokenSilent(MsalHelper.EwsScopes, account)
@@ -242,7 +256,7 @@ public partial class CredentialsService(ILogger<CredentialsService> logger) : IC
         catch (MsalUiRequiredException)
         {
             return CredentialCompletionResult.Failure(
-                "Microsoft requires you to sign in again. Please create the credential again.");
+                "Microsoft requires you to sign in again. Please use 'Sign in again' to renew this credential.");
         }
         catch (MsalException ex)
         {

@@ -13,6 +13,7 @@ public partial class Credentials
     private bool _showDeviceFlowSetup;
     private bool _showDeleteConfirmation;
     private Credential? _credentialToDelete;
+    private Credential? _credentialToReauthenticate;
     private bool _showHelp;
     private Guid? _refreshingCredentialId;
     private string? _statusMessage;
@@ -39,8 +40,17 @@ public partial class Credentials
 
     private void InitiateDeviceFlow()
     {
+        _credentialToReauthenticate = null;
         _showDeviceFlowSetup = true;
         _showHelp = false;
+    }
+
+    private void ReauthenticateCredential(Credential credential)
+    {
+        _credentialToReauthenticate = credential;
+        _showDeviceFlowSetup = true;
+        _showHelp = false;
+        _statusMessage = null;
     }
 
     private void ToggleHelp()
@@ -51,11 +61,13 @@ public partial class Credentials
     private void CancelDeviceFlow()
     {
         _showDeviceFlowSetup = false;
+        _credentialToReauthenticate = null;
     }
 
     private async Task CompleteDeviceFlowAsync()
     {
         _showDeviceFlowSetup = false;
+        _credentialToReauthenticate = null;
         await LoadCredentialsAsync();
     }
 

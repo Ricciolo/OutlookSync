@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
+using OutlookSync.Domain.Aggregates;
 using OutlookSync.Domain.Repositories;
 using OutlookSync.Domain.Services;
 
@@ -46,6 +47,12 @@ public partial class DeviceFlowSetupModal : ComponentBase, IAsyncDisposable
     public bool IsVisible { get; set; }
 
     /// <summary>
+    /// Gets or sets the existing credential to update during reauthentication.
+    /// </summary>
+    [Parameter]
+    public Credential? ExistingCredential { get; set; }
+
+    /// <summary>
     /// Gets or sets the callback invoked when the modal is cancelled
     /// </summary>
     [Parameter]
@@ -73,6 +80,11 @@ public partial class DeviceFlowSetupModal : ComponentBase, IAsyncDisposable
         if (IsVisible && _currentStep == DeviceFlowStep.Success)
         {
             ResetState();
+        }
+
+        if (IsVisible && _currentStep == DeviceFlowStep.FriendlyName && ExistingCredential != null)
+        {
+            _friendlyName = ExistingCredential.FriendlyName;
         }
     }
 
@@ -103,7 +115,9 @@ public partial class DeviceFlowSetupModal : ComponentBase, IAsyncDisposable
 
         try
         {
-            var result = await CredentialsService.InitializeCredentialAsync(_friendlyName);
+            var result = ExistingCredential == null
+                ? await CredentialsService.InitializeCredentialAsync(_friendlyName)
+                : await CredentialsService.ReauthenticateCredentialAsync(ExistingCredential);
 
             if (!result.IsSuccess)
             {
@@ -148,7 +162,11 @@ public partial class DeviceFlowSetupModal : ComponentBase, IAsyncDisposable
             {
                 StopPolling();
                 
-                await CredentialRepository.AddAsync(result.Credential);
+                if (ExistingCredential == null)
+                {
+                    await CredentialRepository.AddAsync(result.Credential);
+                }
+
                 await UnitOfWork.SaveChangesAsync();
 
                 await InvokeAsync(() =>

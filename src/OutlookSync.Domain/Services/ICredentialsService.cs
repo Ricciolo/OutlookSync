@@ -16,6 +16,16 @@ public interface ICredentialsService
     Task<DeviceCodeInitiationResult> InitializeCredentialAsync(
         string friendlyName,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Initiates device code flow authentication for an existing credential.
+    /// </summary>
+    /// <param name="credential">The existing credential to update.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A result containing device code information for user authentication.</returns>
+    Task<DeviceCodeInitiationResult> ReauthenticateCredentialAsync(
+        Credential credential,
+        CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Completes the device code flow authentication and returns the initialized credential
